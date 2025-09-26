@@ -39,6 +39,22 @@ export const generateUniqueSlug = async (baseSlug, checkExistence) => {
 };
 
 /**
+ * Generate a slug from company name
+ * @param {string} companyName - Company name
+ * @returns {string} - Generated slug
+ */
+export const generateCompanySlug = (companyName) => {
+  return companyName
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+};
+
+/**
  * General purpose slug generator (similar to cabin service)
  * @param {string} text - Text to convert to slug
  * @returns {string} - Generated slug

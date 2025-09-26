@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/authMiddleware.js';
-import { create, list, getBySlug, update, remove, listMyCabins, getCabinsByOwnerSlug } from '../controllers/cabinController.js';
+import { create, list, getBySlug, update, remove, listMyCabins, getCabinsByOwnerSlug, getCabinsByCompanySlug } from '../controllers/cabinController.js';
 import { assertCabinOwner } from '../middleware/ownershipMiddleware.js';
 import { availability, book, bookMulti, bookedDates, calendarData, block, cancel, getBookingDetails, getMyBookings, updateBooking, getOwnerAllBookings, getCabinAllBookings, updateBookingStatusController, getCabinBlocks, updateBlockController, removeBlockController, approveBookingController, rejectBookingController, getPendingBookingsController } from '../controllers/bookingController.js';
 
@@ -9,6 +9,7 @@ const router = express.Router();
 router.post('/create', authenticate, authorize('owner'), create);
 router.get('/', list);
 router.get('/owner/:ownerSlug/cabins', getCabinsByOwnerSlug);
+router.get('/company/:companySlug/cabins', getCabinsByCompanySlug);
 router.get('/:slug', getBySlug);
 router.get('/:slug/availability', availability);
 router.post('/:slug/book', book);

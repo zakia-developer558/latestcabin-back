@@ -7,7 +7,7 @@ import {
 } from '../utils/emailUtils.js';
 
 export const registerUser = async (userData) => {
-  const { email, firstName, lastName, password, role = 'user' } = userData;
+  const { email, firstName, lastName, password, companyName, role = 'user' } = userData;
   
   // Check if user already exists
   const existingUser = await User.findOne({ email });
@@ -15,12 +15,13 @@ export const registerUser = async (userData) => {
     throw new Error('User already exists with this email');
   }
   
-  // Create new user
+  // Create new user (companySlug will be auto-generated from companyName)
   const user = await User.create({
     firstName,
     lastName,
     email,
     password,
+    companyName,
     role,
     isVerified: true // Mark user as verified on registration
   });
@@ -45,6 +46,8 @@ export const registerUser = async (userData) => {
         lastName: user.lastName,
         email: user.email,
         slug: user.slug,
+        companyName: user.companyName,
+        companySlug: user.companySlug,
         role: user.role
       }
     };
@@ -135,6 +138,8 @@ export const loginUser = async (email, password) => {
       lastName: user.lastName,
       email: user.email,
       slug: user.slug,
+      companyName: user.companyName,
+      companySlug: user.companySlug,
       role: user.role
     }
   };

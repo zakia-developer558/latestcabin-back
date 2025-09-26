@@ -1,4 +1,4 @@
-import { createCabin, listCabins, getCabinBySlug, updateCabin, deleteCabin, getMyCabins, getCabinsByOwnerSlugService } from '../services/cabinService.js';
+import { createCabin, listCabins, getCabinBySlug, updateCabin, deleteCabin, getMyCabins, getCabinsByOwnerSlugService, getCabinsByCompanySlugService } from '../services/cabinService.js';
 import { createCabinValidation } from '../validators/cabinValidators.js';
 
 export const create = async (req, res) => {
@@ -29,10 +29,10 @@ export const create = async (req, res) => {
 
 export const list = async (req, res) => {
   try {
-    const { city, is_member, ownerId, limit, page } = req.query;
+    const { city, halfdayAvailability, ownerId, limit, page } = req.query;
     const result = await listCabins({
       city,
-      is_member: typeof is_member !== 'undefined' ? is_member === 'true' : undefined,
+      halfdayAvailability: typeof halfdayAvailability !== 'undefined' ? halfdayAvailability === 'true' : undefined,
       ownerId,
       limit,
       page
@@ -110,11 +110,29 @@ export const listMyCabins = async (req, res) => {
 export const getCabinsByOwnerSlug = async (req, res) => {
   try {
     const { ownerSlug } = req.params;
-    const { city, is_member, limit, page } = req.query;
+    const { city, halfdayAvailability, limit, page } = req.query;
     
     const result = await getCabinsByOwnerSlugService(ownerSlug, {
       city,
-      is_member: typeof is_member !== 'undefined' ? is_member === 'true' : undefined,
+      halfdayAvailability: typeof halfdayAvailability !== 'undefined' ? halfdayAvailability === 'true' : undefined,
+      limit,
+      page
+    });
+    
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+export const getCabinsByCompanySlug = async (req, res) => {
+  try {
+    const { companySlug } = req.params;
+    const { city, halfdayAvailability, limit, page } = req.query;
+    
+    const result = await getCabinsByCompanySlugService(companySlug, {
+      city,
+      halfdayAvailability: typeof halfdayAvailability !== 'undefined' ? halfdayAvailability === 'true' : undefined,
       limit,
       page
     });

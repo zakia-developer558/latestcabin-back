@@ -45,6 +45,16 @@ export const registerValidation = (data) => {
         'any.required': 'Password is required'
       }),
     
+    companyName: Joi.string()
+      .min(2)
+      .max(100)
+      .optional()
+      .allow(null, '')
+      .messages({
+        'string.min': 'Company name must be at least 2 characters long',
+        'string.max': 'Company name cannot exceed 100 characters'
+      }),
+    
     role: Joi.string()
       .valid('user', 'owner', 'admin')
       .default('user')

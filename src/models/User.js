@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import FirebaseModel from './firebaseModel.js';
-import { generateUserSlug, generateUniqueSlug } from '../utils/slugUtils.js';
+import { generateUserSlug, generateUniqueSlug, generateCompanySlug } from '../utils/slugUtils.js';
 
 class User extends FirebaseModel {
   constructor() {
@@ -22,6 +22,16 @@ class User extends FirebaseModel {
       return !!existingUser;
     });
 
+    // Generate unique company slug if company name is provided
+    let uniqueCompanySlug = null;
+    if (userData.companyName) {
+      const baseCompanySlug = generateCompanySlug(userData.companyName);
+      uniqueCompanySlug = await generateUniqueSlug(baseCompanySlug, async (slug) => {
+        const existingUser = await this.findOne({ companySlug: slug });
+        return !!existingUser;
+      });
+    }
+
     // Set default values
     const user = {
       firstName: userData.firstName,
@@ -29,6 +39,8 @@ class User extends FirebaseModel {
       email: userData.email.toLowerCase().trim(),
       password: userData.password,
       slug: uniqueSlug,
+      companyName: userData.companyName ? userData.companyName.trim() : null,
+      companySlug: uniqueCompanySlug,
       role: userData.role || 'user',
       isVerified: userData.isVerified || false,
       otp: userData.otp || null,

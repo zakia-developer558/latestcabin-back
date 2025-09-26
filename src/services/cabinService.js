@@ -35,6 +35,7 @@ export const createCabin = async (payload, ownerUser) => {
       id: nextId,
       owner: ownerUser.userId,
       ownerSlug: owner.slug,
+      companySlug: owner.companySlug,
       name: payload.name,
       slug,
       address: payload.address,
@@ -44,7 +45,9 @@ export const createCabin = async (payload, ownerUser) => {
       email: payload.email,
       contact_person_name: payload.contact_person_name,
       contact_person_employer: payload.contact_person_employer,
-      is_member: payload.is_member ?? false
+      image: payload.image,
+      color: payload.color,
+      halfdayAvailability: payload.halfdayAvailability ?? false
     });
 
     return cabin;
@@ -53,10 +56,10 @@ export const createCabin = async (payload, ownerUser) => {
   }
 };
 
-export const listCabins = async ({ city, is_member, ownerId, limit = 20, page = 1 }) => {
+export const listCabins = async ({ city, halfdayAvailability, ownerId, limit = 20, page = 1 }) => {
   const filter = {};
   if (city) filter.city = city;
-  if (typeof is_member === 'boolean') filter.is_member = is_member;
+  if (typeof halfdayAvailability === 'boolean') filter.halfdayAvailability = halfdayAvailability;
   if (ownerId) filter.owner = ownerId;
 
   const skip = (Number(page) - 1) * Number(limit);
@@ -103,7 +106,9 @@ export const updateCabin = async (slug, updates, ownerUser) => {
     email: updates.email ?? cabin.email,
     contact_person_name: updates.contact_person_name ?? cabin.contact_person_name,
     contact_person_employer: updates.contact_person_employer ?? cabin.contact_person_employer,
-    is_member: typeof updates.is_member === 'boolean' ? updates.is_member : cabin.is_member,
+    image: updates.image ?? cabin.image,
+    color: updates.color ?? cabin.color,
+    halfdayAvailability: typeof updates.halfdayAvailability === 'boolean' ? updates.halfdayAvailability : cabin.halfdayAvailability,
     slug: cabin.slug,
     name: cabin.name
   });
@@ -126,7 +131,7 @@ export const deleteCabin = async (slug, ownerUser) => {
 
 export const getMyCabins = async (ownerId, filters = {}) => {
   try {
-    const { city, is_member, limit = 10, page = 1 } = filters;
+    const { city, halfdayAvailability, limit = 10, page = 1 } = filters;
     
     // Build query
     const query = { owner: ownerId };
@@ -135,8 +140,8 @@ export const getMyCabins = async (ownerId, filters = {}) => {
       query.city = { $regex: city, $options: 'i' };
     }
     
-    if (typeof is_member === 'boolean') {
-      query.is_member = is_member;
+    if (typeof halfdayAvailability === 'boolean') {
+      query.halfdayAvailability = halfdayAvailability;
     }
     
     const skip = (page - 1) * limit;
@@ -166,7 +171,7 @@ export const getMyCabins = async (ownerId, filters = {}) => {
 
 export const getCabinsByOwnerSlugService = async (ownerSlug, filters = {}) => {
   try {
-    const { city, is_member, limit = 10, page = 1 } = filters;
+    const { city, halfdayAvailability, limit = 10, page = 1 } = filters;
     
     // Build query using ownerSlug instead of owner ID
     const query = { ownerSlug: ownerSlug };
@@ -175,8 +180,48 @@ export const getCabinsByOwnerSlugService = async (ownerSlug, filters = {}) => {
       query.city = { $regex: city, $options: 'i' };
     }
     
-    if (typeof is_member === 'boolean') {
-      query.is_member = is_member;
+    if (typeof halfdayAvailability === 'boolean') {
+      query.halfdayAvailability = halfdayAvailability;
+    }
+    
+    const skip = (page - 1) * limit;
+    
+    // Set pagination properties on the Cabin model (without sorting to avoid index requirement)
+    Cabin.query.skipCount = skip;
+    Cabin.query.limitCount = parseInt(limit);
+    Cabin.query.sortField = null;
+    Cabin.query.sortDirection = 'asc';
+    
+    const cabins = await Cabin.find(query);
+    const total = await Cabin.countDocuments(query);
+    
+    return {
+      data: cabins,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(total / limit),
+        count: cabins.length,
+        totalRecords: total
+      }
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getCabinsByCompanySlugService = async (companySlug, filters = {}) => {
+  try {
+    const { city, halfdayAvailability, limit = 10, page = 1 } = filters;
+    
+    // Build query using companySlug instead of owner ID
+    const query = { companySlug: companySlug };
+    
+    if (city) {
+      query.city = { $regex: city, $options: 'i' };
+    }
+    
+    if (typeof halfdayAvailability === 'boolean') {
+      query.halfdayAvailability = halfdayAvailability;
     }
     
     const skip = (page - 1) * limit;

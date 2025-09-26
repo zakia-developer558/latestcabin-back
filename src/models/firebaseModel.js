@@ -139,6 +139,75 @@ class FirebaseModel {
     await this._ensureCollection();
     let query = this.db.collection(this.collectionName);
 
+    // Handle $or operator specially
+    if (filter.$or) {
+      console.log(`🔧 Handling $or operator with ${filter.$or.length} conditions`);
+      
+      // For $or queries, we need to execute separate queries and merge results
+      const orResults = [];
+      
+      for (const orCondition of filter.$or) {
+        console.log(`🔍 Executing $or condition:`, JSON.stringify(orCondition, null, 2));
+        let subQuery = this.db.collection(this.collectionName);
+        
+        // Apply the condition to the subquery
+        for (const [key, value] of Object.entries(orCondition)) {
+          console.log(`🔧 Adding condition: ${key} == ${value}`);
+          subQuery = subQuery.where(key, '==', value);
+        }
+        
+        // Apply other non-$or filters to each subquery
+        const otherFilters = { ...filter };
+        delete otherFilters.$or;
+        
+        for (const [key, value] of Object.entries(otherFilters)) {
+          if (typeof value === 'object' && value !== null) {
+            // Handle MongoDB-style operators
+            if (value.$in) {
+              subQuery = subQuery.where(key, 'in', value.$in);
+            } else if (value.$gt) {
+              subQuery = subQuery.where(key, '>', value.$gt);
+            } else if (value.$gte) {
+              subQuery = subQuery.where(key, '>=', value.$gte);
+            } else if (value.$lt) {
+              subQuery = subQuery.where(key, '<', value.$lt);
+            } else if (value.$lte) {
+              subQuery = subQuery.where(key, '<=', value.$lte);
+            } else {
+              subQuery = subQuery.where(key, '==', value);
+            }
+          } else {
+            subQuery = subQuery.where(key, '==', value);
+          }
+        }
+        
+        console.log(`🚀 Executing $or subquery...`);
+        const subSnapshot = await subQuery.get();
+        console.log(`📊 $or subquery returned ${subSnapshot.docs.length} documents`);
+        
+        const subResults = subSnapshot.docs.map(doc => {
+          const data = { _id: doc.id, id: doc.id, ...doc.data() };
+          return this._convertFirebaseTimestamps(data);
+        });
+        
+        orResults.push(...subResults);
+      }
+      
+      // Remove duplicates based on _id
+      const uniqueResults = [];
+      const seenIds = new Set();
+      
+      for (const result of orResults) {
+        if (!seenIds.has(result._id)) {
+          seenIds.add(result._id);
+          uniqueResults.push(result);
+        }
+      }
+      
+      console.log(`✅ $or query final result: ${uniqueResults.length} documents`);
+      return uniqueResults;
+    }
+
     // Handle simple filters and convert MongoDB-style operators to Firestore
     const firestoreFilters = {};
     const memoryFilters = {};

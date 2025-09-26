@@ -93,91 +93,150 @@ export const createBooking = async (slug, payload, user) => {
   const cabin = await Cabin.findOne({ slug });
   if (!cabin) throw new Error('Cabin not found');
 
-  let start, end, startDate, endDate;
   const now = new Date();
-  
-  if (payload.date) {
-    // Single day booking
-    const { date, half = 'FULL' } = payload;
-    const dateObj = new Date(date);
-    
-    console.log('Single day booking debug:', { date, half, dateObj, startDate, endDate });
-    
-    if (half === 'AM') {
-      start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0));
-      end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 11, 59, 59, 999));
-    } else if (half === 'PM') {
-      start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 12, 0, 0, 0));
-      end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 23, 59, 59, 999));
-    } else {
-      // FULL day
-      start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0));
-      end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 23, 59, 59, 999));
+
+  // Check if this is a multi-segment booking
+  if (payload.segments && Array.isArray(payload.segments)) {
+    // Multi-segment booking logic
+    console.log('Multi-segment booking detected:', payload.segments.length, 'segments');
+
+    // Validate availability for each segment first
+    for (const seg of payload.segments) {
+      const { start, end } = toHalfDayRangeUTC(seg.startDate, seg.endDate, seg.startHalf || 'AM', seg.endHalf || 'PM');
+      if (end < now) {
+        const err = new Error('Cannot book past dates');
+        err.status = 400;
+        throw err;
+      }
+      const { available } = await checkAvailability(slug, seg.startDate, seg.endDate, seg.startHalf, seg.endHalf);
+      if (!available) {
+        const err = new Error('One or more segments are not available');
+        err.status = 409;
+        throw err;
+      }
     }
-    
-    // Prevent past-date booking
-    if (end < now) {
-      const err = new Error('Cannot book past dates');
-      err.status = 400;
-      throw err;
-    }
-    
-    // Set startDate and endDate to the computed times for database storage
-    startDate = start;
-    endDate = end;
-    
-    console.log('Computed start/end times:', { start, end, startISO: start.toISOString(), endISO: end.toISOString() });
-    
-    // For single day, check availability with the computed start/end times
-    const { available } = await checkSingleDayAvailability(slug, start, end);
-    if (!available) {
-      const err = new Error('Cabin is not available for the selected date');
-      err.status = 409;
-      throw err;
+
+    // Create all bookings (Firebase doesn't support transactions like MongoDB)
+    try {
+      const bookingsToCreate = [];
+      for (const seg of payload.segments) {
+        const { start, end } = toHalfDayRangeUTC(seg.startDate, seg.endDate, seg.startHalf, seg.endHalf);
+        bookingsToCreate.push({
+          cabin: cabin._id,
+          user: user?.userId || null,
+          startDate: new Date(seg.startDate),
+          endDate: new Date(seg.endDate),
+          startDateTime: start,
+          endDateTime: end,
+          guestName: payload.guestName,
+          guestAddress: payload.guestAddress,
+          guestPostalCode: payload.guestPostalCode,
+          guestCity: payload.guestCity,
+          guestPhone: payload.guestPhone,
+          guestEmail: payload.guestEmail,
+          guestAffiliation: payload.guestAffiliation,
+          status: 'pending'
+        });
+      }
+      
+      // Create bookings individually (Firebase doesn't support bulk operations like MongoDB)
+      const created = [];
+      for (const bookingData of bookingsToCreate) {
+        const booking = await Booking.create(bookingData);
+        created.push(booking);
+      }
+      
+      return created;
+    } catch (e) {
+      throw e;
     }
   } else {
-    // Date range booking
-    const { startDate: sd, endDate: ed, startHalf = 'AM', endHalf = 'PM' } = payload;
-    startDate = new Date(sd);
-    endDate = new Date(ed);
-    const result = toHalfDayRangeUTC(sd, ed, startHalf, endHalf);
-    start = result.start;
-    end = result.end;
-
-    // Prevent past-date booking
-    if (end < now) {
-      const err = new Error('Cannot book past dates');
-      err.status = 400;
-      throw err;
-    }
+    // Single booking logic (existing logic for single day or date range)
+    let start, end, startDate, endDate;
     
-    // For date range, check availability with the original dates and halves
-    const { available } = await checkAvailability(slug, startDate, endDate, startHalf, endHalf);
-    if (!available) {
-      const err = new Error('Cabin is not available for the selected dates');
-      err.status = 409;
-      throw err;
+    if (payload.date) {
+      // Single day booking
+      const { date, half = 'FULL' } = payload;
+      const dateObj = new Date(date);
+      
+      console.log('Single day booking debug:', { date, half, dateObj, startDate, endDate });
+      
+      if (half === 'AM') {
+        start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0));
+        end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 11, 59, 59, 999));
+      } else if (half === 'PM') {
+        start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 12, 0, 0, 0));
+        end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 23, 59, 59, 999));
+      } else {
+        // FULL day
+        start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0));
+        end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 23, 59, 59, 999));
+      }
+      
+      // Prevent past-date booking
+      if (end < now) {
+        const err = new Error('Cannot book past dates');
+        err.status = 400;
+        throw err;
+      }
+      
+      // Set startDate and endDate to the computed times for database storage
+      startDate = start;
+      endDate = end;
+      
+      console.log('Computed start/end times:', { start, end, startISO: start.toISOString(), endISO: end.toISOString() });
+      
+      // For single day, check availability with the computed start/end times
+      const { available } = await checkSingleDayAvailability(slug, start, end);
+      if (!available) {
+        const err = new Error('Cabin is not available for the selected date');
+        err.status = 409;
+        throw err;
+      }
+    } else {
+      // Date range booking
+      const { startDate: sd, endDate: ed, startHalf = 'AM', endHalf = 'PM' } = payload;
+      startDate = new Date(sd);
+      endDate = new Date(ed);
+      const result = toHalfDayRangeUTC(sd, ed, startHalf, endHalf);
+      start = result.start;
+      end = result.end;
+
+      // Prevent past-date booking
+      if (end < now) {
+        const err = new Error('Cannot book past dates');
+        err.status = 400;
+        throw err;
+      }
+      
+      // For date range, check availability with the original dates and halves
+      const { available } = await checkAvailability(slug, startDate, endDate, startHalf, endHalf);
+      if (!available) {
+        const err = new Error('Cabin is not available for the selected dates');
+        err.status = 409;
+        throw err;
+      }
     }
+
+    const booking = await Booking.create({
+      cabin: cabin._id,
+      user: user?.userId || null, // Ensure user ID is set or explicitly null
+      startDate: startDate,
+      endDate: endDate,
+      startDateTime: start,
+      endDateTime: end,
+      guestName: payload.guestName,
+      guestAddress: payload.guestAddress,
+      guestPostalCode: payload.guestPostalCode,
+      guestCity: payload.guestCity,
+      guestPhone: payload.guestPhone,
+      guestEmail: payload.guestEmail,
+      guestAffiliation: payload.guestAffiliation,
+      status: 'pending'
+    });
+
+    return booking;
   }
-
-  const booking = await Booking.create({
-    cabin: cabin._id,
-    user: user?.userId || null, // Ensure user ID is set or explicitly null
-    startDate: startDate,
-    endDate: endDate,
-    startDateTime: start,
-    endDateTime: end,
-    guestName: payload.guestName,
-    guestAddress: payload.guestAddress,
-    guestPostalCode: payload.guestPostalCode,
-    guestCity: payload.guestCity,
-    guestPhone: payload.guestPhone,
-    guestEmail: payload.guestEmail,
-    guestAffiliation: payload.guestAffiliation,
-    status: 'pending'
-  });
-
-  return booking;
 };
 
 export const createMultiBooking = async (slug, payload, user) => {
@@ -245,18 +304,18 @@ export const getBookedDates = async (slug) => {
   console.log(`🔍 getBookedDates: Looking for bookings for cabin ${slug} (ID: ${cabin._id})`);
   
   const [bookings, blocks] = await Promise.all([
-    Booking.find({ cabin: cabin._id, status: { $nin: ['cancelled', 'rejected'] } }, { startDate: 1, endDate: 1, _id: 0 }),
-    Unavailability.find({ cabin: cabin._id }, { startDate: 1, endDate: 1, _id: 0 })
+    Booking.find({ cabin: cabin._id, status: { $nin: ['cancelled', 'rejected'] } }, { startDate: 1, endDate: 1, status: 1, orderNo: 1, guestName: 1, _id: 0 }),
+    Unavailability.find({ cabin: cabin._id }, { startDate: 1, endDate: 1, reason: 1, _id: 0 })
   ]);
   
   console.log(`📋 getBookedDates: Found ${bookings.length} bookings and ${blocks.length} blocks`);
   bookings.forEach((booking, index) => {
-    console.log(`📝 getBookedDates Booking ${index + 1}: ${booking.startDate} to ${booking.endDate}`);
+    console.log(`📝 getBookedDates Booking ${index + 1}: ${booking.startDate} to ${booking.endDate} by ${booking.guestName}`);
   });
   
   return {
-    bookings: bookings.map(b => ({ startDate: b.startDate, endDate: b.endDate })),
-    blocks: blocks.map(b => ({ startDate: b.startDate, endDate: b.endDate }))
+    bookings: bookings.map(b => ({ startDate: b.startDate, endDate: b.endDate, status: b.status, orderNo: b.orderNo, guestName: b.guestName })),
+    blocks: blocks.map(b => ({ startDate: b.startDate, endDate: b.endDate, reason: b.reason }))
   };
 };
 
@@ -332,17 +391,43 @@ export const getCalendarData = async (slug, year, month) => {
   const bookingDates = new Map();
   bookings.forEach(booking => {
     const dates = getDatesInRange(booking.startDate, booking.endDate);
+    
     dates.forEach(date => {
       const dateKey = date.toISOString().split('T')[0];
       if (!bookingDates.has(dateKey)) {
         bookingDates.set(dateKey, []);
       }
+      
+      // Calculate the actual time period for this specific date
+      const bookingStart = new Date(booking.startDateTime);
+      const bookingEnd = new Date(booking.endDateTime);
+      const currentDate = new Date(date);
+      
+      // Determine start time for this date
+      let dayStartTime, dayEndTime;
+      
+      if (dateKey === bookingStart.toISOString().split('T')[0]) {
+        // First day of booking - use actual start time
+        dayStartTime = bookingStart;
+      } else {
+        // Subsequent days - start from beginning of day
+        dayStartTime = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate(), 0, 0, 0, 0));
+      }
+      
+      if (dateKey === bookingEnd.toISOString().split('T')[0]) {
+        // Last day of booking - use actual end time
+        dayEndTime = bookingEnd;
+      } else {
+        // Earlier days - end at end of day
+        dayEndTime = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate(), 23, 59, 59, 999));
+      }
+      
       bookingDates.get(dateKey).push({
         type: 'booking',
         status: booking.status,
         guestName: booking.guestName,
-        startDateTime: booking.startDateTime,
-        endDateTime: booking.endDateTime
+        startDateTime: dayStartTime,
+        endDateTime: dayEndTime
       });
     });
   });

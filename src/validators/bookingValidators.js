@@ -19,6 +19,47 @@ export const availabilityValidation = (data) => {
 };
 
 export const createBookingValidation = (data) => {
+  // Check if this is a multi-segment booking first
+  if (data.segments && Array.isArray(data.segments)) {
+    // Define segment schema for multi-booking validation
+    const segmentSchema = Joi.object({
+      startDate: Joi.date().iso().required(),
+      endDate: Joi.date().iso().required(),
+      startHalf: Joi.string().valid('AM', 'PM').default('AM'),
+      endHalf: Joi.string().valid('AM', 'PM').default('PM')
+    }).custom((value, helpers) => {
+      // For same-day bookings, allow equal dates
+      if (new Date(value.endDate).getTime() < new Date(value.startDate).getTime()) {
+        return helpers.error('any.custom', { message: 'endDate must be after or equal to startDate' });
+      }
+      return value;
+    }, 'segment dates order validation');
+
+    const multiSegmentSchema = Joi.object({
+      segments: Joi.array().items(segmentSchema).min(1).max(10).required(),
+      guestName: Joi.string().trim().min(2).max(100).required(),
+      guestAddress: Joi.string().trim().min(2).max(200).required(),
+      guestPostalCode: Joi.string().trim().min(2).max(20).required(),
+      guestCity: Joi.string().trim().min(2).max(100).required(),
+      guestPhone: Joi.string().trim().min(5).max(30).required(),
+      guestEmail: Joi.string().email().lowercase().trim().required(),
+      guestAffiliation: Joi.string().trim().allow('', null)
+    }).custom((value, helpers) => {
+      // ensure segments don't overlap each other
+      const toMs = (d) => new Date(d).getTime();
+      const sorted = value.segments.slice().sort((a,b) => toMs(a.startDate) - toMs(b.startDate));
+      for (let i = 1; i < sorted.length; i++) {
+        if (toMs(sorted[i-1].endDate) > toMs(sorted[i].startDate)) {
+          return helpers.error('any.custom', { message: 'Segments overlap each other' });
+        }
+      }
+      return value;
+    }, 'segments non-overlap validation');
+
+    return multiSegmentSchema.validate(data, { abortEarly: false });
+  }
+
+  // For single day and date range bookings
   const schema = Joi.alternatives().try(
     // Single day booking
     Joi.object({
@@ -47,7 +88,7 @@ export const createBookingValidation = (data) => {
       guestAffiliation: Joi.string().trim().allow('', null)
     }).custom((value, helpers) => {
       if (new Date(value.endDate) <= new Date(value.startDate)) {
-        return helpers.error('any.custom', 'endDate must be after startDate');
+        return helpers.error('any.custom', { message: 'endDate must be after startDate' });
       }
       return value;
     }, 'dates order validation')

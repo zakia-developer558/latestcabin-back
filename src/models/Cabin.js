@@ -20,6 +20,7 @@ class Cabin extends FirebaseModel {
       id: cabinData.id,
       owner: cabinData.owner,
       ownerSlug: cabinData.ownerSlug,
+      companySlug: cabinData.companySlug,
       name: cabinData.name,
       slug: cabinData.slug.toLowerCase().trim(),
       address: cabinData.address.trim(),
@@ -29,7 +30,9 @@ class Cabin extends FirebaseModel {
       email: cabinData.email ? cabinData.email.toLowerCase().trim() : null,
       contact_person_name: cabinData.contact_person_name ? cabinData.contact_person_name.trim() : null,
       contact_person_employer: cabinData.contact_person_employer ? cabinData.contact_person_employer.trim() : null,
-      is_member: cabinData.is_member || false,
+      image: cabinData.image || null,
+      color: cabinData.color || '#3B82F6',
+      halfdayAvailability: cabinData.halfdayAvailability || false,
       createdAt: new Date(),
       updatedAt: new Date()
     };

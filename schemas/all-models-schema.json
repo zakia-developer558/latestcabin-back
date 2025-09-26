@@ -1,0 +1,544 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cabin Booking System - All Models Schema",
+  "description": "Complete JSON schemas for all models in the cabin booking system",
+  "definitions": {
+    "User": {
+      "type": "object",
+      "title": "User Model",
+      "description": "User account information and authentication data",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user identifier (auto-generated)"
+        },
+        "firstName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50,
+          "description": "User's first name"
+        },
+        "lastName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 50,
+          "description": "User's last name"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User's email address (unique, normalized to lowercase)"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 6,
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)",
+          "description": "Hashed password (must contain lowercase, uppercase, and number)"
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL-friendly identifier generated from name"
+        },
+        "companyName": {
+          "type": ["string", "null"],
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "User's company name (optional)"
+        },
+        "companySlug": {
+          "type": ["string", "null"],
+          "minLength": 2,
+          "maxLength": 50,
+          "pattern": "^[a-z0-9-]+$",
+          "description": "URL-friendly company identifier (optional, lowercase letters, numbers, and hyphens only)"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "owner", "admin"],
+          "default": "user",
+          "description": "User role for authorization"
+        },
+        "isVerified": {
+          "type": "boolean",
+          "default": false,
+          "description": "Email verification status"
+        },
+        "otp": {
+          "type": ["string", "null"],
+          "description": "One-time password for verification"
+        },
+        "resetPasswordToken": {
+          "type": ["string", "null"],
+          "description": "Token for password reset"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["firstName", "lastName", "email", "password"],
+      "additionalProperties": false
+    },
+    "Cabin": {
+      "type": "object",
+      "title": "Cabin Model",
+      "description": "Cabin property information and contact details",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique cabin identifier (auto-generated)"
+        },
+        "owner": {
+          "type": "string",
+          "description": "Reference to owner user ID"
+        },
+        "ownerSlug": {
+          "type": "string",
+          "description": "Owner's slug for URL routing"
+        },
+        "companySlug": {
+          "type": ["string", "null"],
+          "description": "Company's slug for URL routing (optional)"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "Cabin name or title"
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL-friendly cabin identifier"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200,
+          "description": "Physical address of the cabin"
+        },
+        "postal_code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20,
+          "description": "Postal/ZIP code"
+        },
+        "city": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "City where cabin is located"
+        },
+        "phone": {
+          "type": ["string", "null"],
+          "description": "Contact phone number (optional)"
+        },
+        "email": {
+          "type": ["string", "null"],
+          "format": "email",
+          "description": "Contact email address (optional)"
+        },
+        "contact_person_name": {
+          "type": ["string", "null"],
+          "description": "Name of contact person (optional)"
+        },
+        "contact_person_employer": {
+          "type": ["string", "null"],
+          "description": "Employer of contact person (optional)"
+        },
+        "image": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL of cabin image (optional)"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+          "default": "#3B82F6",
+          "description": "Hex color code for booking form theming"
+        },
+        "halfdayAvailability": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether cabin is available for half-day bookings"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Cabin creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["owner", "ownerSlug", "name", "slug", "address", "postal_code", "city"],
+      "additionalProperties": false
+    },
+    "Booking": {
+      "type": "object",
+      "title": "Booking Model",
+      "description": "Cabin booking reservation information",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique booking identifier (auto-generated)"
+        },
+        "orderNo": {
+          "type": "string",
+          "pattern": "^BK\\d{6}$",
+          "description": "Auto-generated order number (format: BK000001)"
+        },
+        "cabin": {
+          "type": "string",
+          "description": "Reference to cabin ID"
+        },
+        "user": {
+          "type": "string",
+          "description": "Reference to user ID who made the booking"
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Booking start date"
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Booking end date (must be after or equal to start date)"
+        },
+        "startDateTime": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Specific start date and time (optional)"
+        },
+        "endDateTime": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Specific end date and time (optional)"
+        },
+        "guestName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "Name of the guest"
+        },
+        "guestAddress": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200,
+          "description": "Guest's address"
+        },
+        "guestPostalCode": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20,
+          "description": "Guest's postal code"
+        },
+        "guestCity": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "Guest's city"
+        },
+        "guestPhone": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 30,
+          "description": "Guest's phone number"
+        },
+        "guestEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Guest's email address"
+        },
+        "guestAffiliation": {
+          "type": ["string", "null"],
+          "description": "Guest's organization or affiliation (optional)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled", "completed"],
+          "default": "pending",
+          "description": "Booking status"
+        },
+        "segments": {
+          "type": "array",
+          "description": "For multi-segment bookings",
+          "items": {
+            "type": "object",
+            "properties": {
+              "startDate": {
+                "type": "string",
+                "format": "date"
+              },
+              "endDate": {
+                "type": "string",
+                "format": "date"
+              },
+              "startHalf": {
+                "type": "string",
+                "enum": ["AM", "PM"],
+                "default": "AM"
+              },
+              "endHalf": {
+                "type": "string",
+                "enum": ["AM", "PM"],
+                "default": "PM"
+              }
+            },
+            "required": ["startDate", "endDate"]
+          },
+          "minItems": 1,
+          "maxItems": 10
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Booking creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["orderNo", "cabin", "user", "startDate", "endDate", "guestName", "guestAddress", "guestPostalCode", "guestCity", "guestPhone", "guestEmail"],
+      "additionalProperties": false
+    },
+    "Unavailability": {
+      "type": "object",
+      "title": "Unavailability Model",
+      "description": "Cabin unavailability periods (blocked dates)",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique unavailability identifier (auto-generated)"
+        },
+        "cabin": {
+          "type": "string",
+          "description": "Reference to cabin ID"
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Start date of unavailability period"
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date",
+          "description": "End date of unavailability period (must be after start date)"
+        },
+        "reason": {
+          "type": ["string", "null"],
+          "description": "Reason for unavailability (optional)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Record creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["cabin", "startDate", "endDate"],
+      "additionalProperties": false
+    },
+    "Legend": {
+      "type": "object",
+      "title": "Legend Model",
+      "description": "Color legend definitions for calendar display",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique legend identifier (auto-generated)"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "Legend name or label"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+          "description": "Primary color in hex format"
+        },
+        "bgColor": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+          "description": "Background color in hex format"
+        },
+        "borderColor": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+          "description": "Border color in hex format"
+        },
+        "textColor": {
+          "type": "string",
+          "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
+          "description": "Text color in hex format"
+        },
+        "isActive": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether legend is currently active"
+        },
+        "isDefault": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this is the default legend"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "maxLength": 200,
+          "description": "Optional description of the legend"
+        },
+        "createdBy": {
+          "type": ["string", "null"],
+          "description": "User ID who created this legend (null for default legends)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Legend creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["name", "color", "bgColor", "borderColor", "textColor"],
+      "additionalProperties": false
+    },
+    "Counter": {
+      "type": "object",
+      "title": "Counter Model",
+      "description": "Sequence counter for generating unique IDs",
+      "properties": {
+        "_id": {
+          "type": "string",
+          "description": "Counter identifier (e.g., 'booking', 'cabin')"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Current sequence number"
+        }
+      },
+      "required": ["_id", "seq"],
+      "additionalProperties": false
+    }
+  },
+  "models": {
+    "User": {
+      "$ref": "#/definitions/User"
+    },
+    "Cabin": {
+      "$ref": "#/definitions/Cabin"
+    },
+    "Booking": {
+      "$ref": "#/definitions/Booking"
+    },
+    "Unavailability": {
+      "$ref": "#/definitions/Unavailability"
+    },
+    "Legend": {
+      "$ref": "#/definitions/Legend"
+    },
+    "Counter": {
+      "$ref": "#/definitions/Counter"
+    }
+  },
+  "relationships": {
+    "description": "Model relationships and foreign key references",
+    "User_to_Cabin": {
+      "type": "one-to-many",
+      "description": "One user (owner) can have multiple cabins",
+      "foreignKey": "Cabin.owner -> User.id"
+    },
+    "User_to_Booking": {
+      "type": "one-to-many",
+      "description": "One user can make multiple bookings",
+      "foreignKey": "Booking.user -> User.id"
+    },
+    "Cabin_to_Booking": {
+      "type": "one-to-many",
+      "description": "One cabin can have multiple bookings",
+      "foreignKey": "Booking.cabin -> Cabin.id"
+    },
+    "Cabin_to_Unavailability": {
+      "type": "one-to-many",
+      "description": "One cabin can have multiple unavailability periods",
+      "foreignKey": "Unavailability.cabin -> Cabin.id"
+    }
+  },
+  "validation_rules": {
+    "User": {
+      "password": "Must contain at least one lowercase letter, one uppercase letter, and one number",
+      "email": "Must be unique across all users",
+      "slug": "Auto-generated from firstName and lastName"
+    },
+    "Cabin": {
+      "slug": "Auto-generated from name, must be unique per owner",
+      "email": "Optional, normalized to lowercase if provided"
+    },
+    "Booking": {
+      "dateRange": "endDate must be after or equal to startDate (same-day bookings allowed)",
+      "segments": "For multi-segment bookings, segments cannot overlap",
+      "guestEmail": "Normalized to lowercase"
+    },
+    "Unavailability": {
+      "dateRange": "endDate must be after startDate (not equal)"
+    },
+    "Legend": {
+      "colors": "All color fields must be valid hex color codes",
+      "isDefault": "Only one legend can be default at a time"
+    }
+  },
+  "api_endpoints_summary": {
+    "User": {
+      "POST /auth/register": "Create new user account",
+      "POST /auth/login": "User authentication",
+      "POST /auth/verify-otp": "Verify email with OTP",
+      "POST /auth/forgot-password": "Request password reset",
+      "POST /auth/reset-password": "Reset password with token",
+      "POST /auth/resend-otp": "Resend verification OTP"
+    },
+    "Cabin": {
+      "POST /cabins": "Create new cabin (owner only)",
+      "GET /cabins": "List cabins with pagination",
+      "GET /cabins/:id": "Get cabin details",
+      "PUT /cabins/:id": "Update cabin (owner only)",
+      "DELETE /cabins/:id": "Delete cabin (owner only)"
+    },
+    "Booking": {
+      "POST /bookings": "Create new booking",
+      "GET /bookings": "List bookings with filters",
+      "GET /bookings/:id": "Get booking details",
+      "PUT /bookings/:id": "Update booking",
+      "DELETE /bookings/:id": "Cancel booking",
+      "POST /bookings/availability": "Check availability",
+      "POST /bookings/multi": "Create multi-segment booking",
+      "POST /bookings/block": "Block dates (owner only)"
+    },
+    "Legend": {
+      "POST /legends": "Create new legend (owner only)",
+      "GET /legends": "List legends with filters",
+      "GET /legends/:id": "Get legend details",
+      "PUT /legends/:id": "Update legend (owner only)",
+      "DELETE /legends/:id": "Delete legend (owner only)",
+      "PATCH /legends/:id/toggle": "Toggle legend active status"
+    }
+  }
+}

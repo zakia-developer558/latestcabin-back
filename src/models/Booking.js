@@ -1,4 +1,5 @@
 import FirebaseModel from './firebaseModel.js';
+import Counter from './Counter.js';
 
 class Booking extends FirebaseModel {
   constructor() {
@@ -15,13 +16,18 @@ class Booking extends FirebaseModel {
 
   // Override create to handle booking-specific logic
   async create(bookingData) {
-    // Validate date range
-    if (bookingData.startDate && bookingData.endDate && new Date(bookingData.endDate) <= new Date(bookingData.startDate)) {
-      throw new Error('endDate must be after startDate');
+    // Validate date range (allow same-day bookings)
+    if (bookingData.startDate && bookingData.endDate && new Date(bookingData.endDate) < new Date(bookingData.startDate)) {
+      throw new Error('endDate must be after or equal to startDate');
     }
+
+    // Generate order number
+    const orderSequence = await Counter.getNextSequence('booking');
+    const orderNo = orderSequence;
 
     // Set default values and ensure proper formatting
     const booking = {
+      orderNo,
       cabin: bookingData.cabin,
       user: bookingData.user,
       startDate: new Date(bookingData.startDate),
@@ -45,10 +51,10 @@ class Booking extends FirebaseModel {
 
   // Override findByIdAndUpdate to handle booking-specific logic
   async findByIdAndUpdate(id, updateData) {
-    // Validate date range if both dates are being updated
+    // Validate date range if both dates are being updated (allow same-day bookings)
     if (updateData.startDate && updateData.endDate && 
-        new Date(updateData.endDate) <= new Date(updateData.startDate)) {
-      throw new Error('endDate must be after startDate');
+        new Date(updateData.endDate) < new Date(updateData.startDate)) {
+      throw new Error('endDate must be after or equal to startDate');
     }
 
     // Always update the updatedAt timestamp
