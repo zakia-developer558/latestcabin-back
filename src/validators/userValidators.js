@@ -7,10 +7,10 @@ export const registerValidation = (data) => {
       .max(50)
       .required()
       .messages({
-        'string.empty': 'First name is required',
-        'string.min': 'First name must be at least 2 characters long',
-        'string.max': 'First name cannot exceed 50 characters',
-        'any.required': 'First name is required'
+        'string.empty': 'Fornavn er påkrevd',
+        'string.min': 'Fornavn må være minst 2 tegn langt',
+        'string.max': 'Fornavn kan ikke overstige 50 tegn',
+        'any.required': 'Fornavn er påkrevd'
       }),
     
     lastName: Joi.string()
@@ -18,10 +18,10 @@ export const registerValidation = (data) => {
       .max(50)
       .required()
       .messages({
-        'string.empty': 'Last name is required',
-        'string.min': 'Last name must be at least 2 characters long',
-        'string.max': 'Last name cannot exceed 50 characters',
-        'any.required': 'Last name is required'
+        'string.empty': 'Etternavn er påkrevd',
+        'string.min': 'Etternavn må være minst 2 tegn langt',
+        'string.max': 'Etternavn kan ikke overstige 50 tegn',
+        'any.required': 'Etternavn er påkrevd'
       }),
     
     email: Joi.string()
@@ -29,9 +29,9 @@ export const registerValidation = (data) => {
       .required()
       .normalize()
       .messages({
-        'string.email': 'Please provide a valid email',
-        'string.empty': 'Email is required',
-        'any.required': 'Email is required'
+        'string.email': 'Vennligst oppgi en gyldig e-postadresse',
+        'string.empty': 'E-post er påkrevd',
+        'any.required': 'E-post er påkrevd'
       }),
     
     password: Joi.string()
@@ -39,10 +39,10 @@ export const registerValidation = (data) => {
       .required()
       .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
       .messages({
-        'string.min': 'Password must be at least 6 characters long',
-        'string.pattern.base': 'Password must contain at least one lowercase letter, one uppercase letter, and one number',
-        'string.empty': 'Password is required',
-        'any.required': 'Password is required'
+        'string.min': 'Passord må være minst 6 tegn langt',
+        'string.pattern.base': 'Passord må inneholde minst én liten bokstav, én stor bokstav og ett tall',
+        'string.empty': 'Passord er påkrevd',
+        'any.required': 'Passord er påkrevd'
       }),
     
     companyName: Joi.string()
@@ -51,8 +51,8 @@ export const registerValidation = (data) => {
       .optional()
       .allow(null, '')
       .messages({
-        'string.min': 'Company name must be at least 2 characters long',
-        'string.max': 'Company name cannot exceed 100 characters'
+        'string.min': 'Firmanavn må være minst 2 tegn langt',
+        'string.max': 'Firmanavn kan ikke overstige 100 tegn'
       }),
     
     role: Joi.string()

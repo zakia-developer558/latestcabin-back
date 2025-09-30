@@ -12,7 +12,7 @@ export const registerUser = async (userData) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    throw new Error('User already exists with this email');
+    throw new Error('Brukeren finnes allerede med denne e-postadressen');
   }
   
   // Create new user (companySlug will be auto-generated from companyName)
@@ -38,7 +38,7 @@ export const registerUser = async (userData) => {
   });
   
   return {
-      message: 'Registration successful. You are now logged in.',
+      message: 'Registreringen var vellykket. Du er nå logget inn.',
       token,
       user: {
         id: user._id,
@@ -111,16 +111,16 @@ export const loginUser = async (email, password) => {
   const user = await User.findOne({ email });
   
   if (!user) {
-    throw new Error('Invalid credentials');
+    throw new Error('Ugyldig legitimasjon');
   }
   
   if (!user.isVerified) {
-    throw new Error('Please verify your account first');
+    throw new Error(' Vennligst bekreft kontoen din først');
   }
   
   const isPasswordValid = await User.comparePassword(user._id, password);
   if (!isPasswordValid) {
-    throw new Error('Invalid credentials');
+    throw new Error('Ugyldig legitimasjon');
   }
   
   // Generate token

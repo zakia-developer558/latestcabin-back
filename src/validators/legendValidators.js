@@ -24,24 +24,24 @@ export const createLegendValidation = (req, res, next) => {
       }),
     
     bgColor: Joi.string()
-      .pattern(/^bg-[a-z]+-\d{2,3}$/)
+      .pattern(/^(bg-[a-z]+-\d{2,3}(\s+dark:bg-[a-z]+-\d{2,3})?|bg-[a-z]+-\d{2,3})$/)
       .default('bg-gray-100')
       .messages({
-        'string.pattern.base': 'Background color must be a valid Tailwind CSS class (e.g., bg-red-100)'
+        'string.pattern.base': 'Background color must be a valid Tailwind CSS class (e.g., bg-red-100 or bg-red-100 dark:bg-red-900)'
       }),
     
     borderColor: Joi.string()
-      .pattern(/^border-[a-z]+-\d{2,3}$/)
+      .pattern(/^(border-[a-z]+-\d{2,3}(\s+dark:border-[a-z]+-\d{2,3})?|border-[a-z]+-\d{2,3})$/)
       .default('border-gray-200')
       .messages({
-        'string.pattern.base': 'Border color must be a valid Tailwind CSS class (e.g., border-red-200)'
+        'string.pattern.base': 'Border color must be a valid Tailwind CSS class (e.g., border-red-200 or border-red-200 dark:border-red-700)'
       }),
     
     textColor: Joi.string()
-      .pattern(/^text-[a-z]+-\d{2,3}$/)
+      .pattern(/^(text-[a-z]+-\d{2,3}(\s+dark:text-[a-z]+-\d{2,3})?|text-[a-z]+-\d{2,3})$/)
       .default('text-gray-800')
       .messages({
-        'string.pattern.base': 'Text color must be a valid Tailwind CSS class (e.g., text-red-800)'
+        'string.pattern.base': 'Text color must be a valid Tailwind CSS class (e.g., text-red-800 or text-red-800 dark:text-red-200)'
       }),
     
     isActive: Joi.boolean()
@@ -49,6 +49,16 @@ export const createLegendValidation = (req, res, next) => {
     
     isDefault: Joi.boolean()
       .default(false),
+    
+    companySlug: Joi.string()
+      .trim()
+      .min(2)
+      .max(100)
+      .allow(null)
+      .messages({
+        'string.min': 'Company slug must be at least 2 characters long',
+        'string.max': 'Company slug cannot exceed 100 characters'
+      }),
     
     description: Joi.string()
       .trim()
@@ -94,26 +104,36 @@ export const updateLegendValidation = (req, res, next) => {
       }),
     
     bgColor: Joi.string()
-      .pattern(/^bg-[a-z]+-\d{2,3}$/)
+      .pattern(/^(bg-[a-z]+-\d{2,3}(\s+dark:bg-[a-z]+-\d{2,3})?|bg-[a-z]+-\d{2,3})$/)
       .messages({
-        'string.pattern.base': 'Background color must be a valid Tailwind CSS class (e.g., bg-red-100)'
+        'string.pattern.base': 'Background color must be a valid Tailwind CSS class (e.g., bg-red-100 or bg-red-100 dark:bg-red-900)'
       }),
     
     borderColor: Joi.string()
-      .pattern(/^border-[a-z]+-\d{2,3}$/)
+      .pattern(/^(border-[a-z]+-\d{2,3}(\s+dark:border-[a-z]+-\d{2,3})?|border-[a-z]+-\d{2,3})$/)
       .messages({
-        'string.pattern.base': 'Border color must be a valid Tailwind CSS class (e.g., border-red-200)'
+        'string.pattern.base': 'Border color must be a valid Tailwind CSS class (e.g., border-red-200 or border-red-200 dark:border-red-700)'
       }),
     
     textColor: Joi.string()
-      .pattern(/^text-[a-z]+-\d{2,3}$/)
+      .pattern(/^(text-[a-z]+-\d{2,3}(\s+dark:text-[a-z]+-\d{2,3})?|text-[a-z]+-\d{2,3})$/)
       .messages({
-        'string.pattern.base': 'Text color must be a valid Tailwind CSS class (e.g., text-red-800)'
+        'string.pattern.base': 'Text color must be a valid Tailwind CSS class (e.g., text-red-800 or text-red-800 dark:text-red-200)'
       }),
     
     isActive: Joi.boolean(),
     
     isDefault: Joi.boolean(),
+    
+    companySlug: Joi.string()
+      .trim()
+      .min(2)
+      .max(100)
+      .allow(null)
+      .messages({
+        'string.min': 'Company slug must be at least 2 characters long',
+        'string.max': 'Company slug cannot exceed 100 characters'
+      }),
     
     description: Joi.string()
       .trim()

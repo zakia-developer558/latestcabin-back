@@ -147,10 +147,6 @@
           "type": ["string", "null"],
           "description": "Name of contact person (optional)"
         },
-        "contact_person_employer": {
-          "type": ["string", "null"],
-          "description": "Employer of contact person (optional)"
-        },
         "image": {
           "type": ["string", "null"],
           "format": "uri",
@@ -406,6 +402,12 @@
         "createdBy": {
           "type": ["string", "null"],
           "description": "User ID who created this legend (null for default legends)"
+        },
+        "companySlug": {
+          "type": ["string", "null"],
+          "minLength": 2,
+          "maxLength": 100,
+          "description": "Company slug for company-specific legends (null for default legends)"
         },
         "createdAt": {
           "type": "string",

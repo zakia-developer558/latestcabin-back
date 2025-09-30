@@ -44,7 +44,6 @@ export const createCabin = async (payload, ownerUser) => {
       phone: payload.phone,
       email: payload.email,
       contact_person_name: payload.contact_person_name,
-      contact_person_employer: payload.contact_person_employer,
       image: payload.image,
       color: payload.color,
       halfdayAvailability: payload.halfdayAvailability ?? false
@@ -105,7 +104,6 @@ export const updateCabin = async (slug, updates, ownerUser) => {
     phone: updates.phone ?? cabin.phone,
     email: updates.email ?? cabin.email,
     contact_person_name: updates.contact_person_name ?? cabin.contact_person_name,
-    contact_person_employer: updates.contact_person_employer ?? cabin.contact_person_employer,
     image: updates.image ?? cabin.image,
     color: updates.color ?? cabin.color,
     halfdayAvailability: typeof updates.halfdayAvailability === 'boolean' ? updates.halfdayAvailability : cabin.halfdayAvailability,

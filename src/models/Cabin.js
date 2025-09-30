@@ -29,7 +29,6 @@ class Cabin extends FirebaseModel {
       phone: cabinData.phone || null,
       email: cabinData.email ? cabinData.email.toLowerCase().trim() : null,
       contact_person_name: cabinData.contact_person_name ? cabinData.contact_person_name.trim() : null,
-      contact_person_employer: cabinData.contact_person_employer ? cabinData.contact_person_employer.trim() : null,
       image: cabinData.image || null,
       color: cabinData.color || '#3B82F6',
       halfdayAvailability: cabinData.halfdayAvailability || false,

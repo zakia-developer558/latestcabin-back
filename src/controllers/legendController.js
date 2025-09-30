@@ -4,6 +4,10 @@ import {
   getActiveLegends,
   getUserLegends,
   getUserActiveLegends,
+  getCompanyLegends,
+  getCompanyActiveLegends,
+  getCompanyOnlyLegends,
+  getCompanyOnlyActiveLegends,
   getLegendById, 
   createLegend, 
   updateLegend, 
@@ -11,6 +15,7 @@ import {
   toggleLegendStatus,
   initializeDefaultLegends 
 } from '../services/legendService.js';
+import { getCabinBySlug } from '../services/cabinService.js';
 
 // GET - Fetch legend by ID (public endpoint - no authentication required)
 export const getPublicLegendById = async (req, res) => {
@@ -32,6 +37,32 @@ export const getPublicLegendById = async (req, res) => {
     });
   } catch (err) {
     console.error('Error in getPublicLegendById:', err);
+    return res.status(500).json({ 
+      success: false, 
+      message: err.message 
+    });
+  }
+};
+
+// GET - Get only company-specific legends (excluding defaults) by company slug
+export const getCompanySpecificLegends = async (req, res) => {
+  try {
+    const { companySlug } = req.params;
+    const { active } = req.query;
+
+    let legends;
+    if (active === 'true') {
+      legends = await getCompanyOnlyActiveLegends(companySlug);
+    } else {
+      legends = await getCompanyOnlyLegends(companySlug);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: legends
+    });
+  } catch (err) {
+    console.error('Error fetching company-only legends:', err);
     return res.status(500).json({ 
       success: false, 
       message: err.message 
@@ -138,7 +169,8 @@ export const getLegend = async (req, res) => {
 export const createNewLegend = async (req, res) => {
   try {
     const userId = req.user?.userId; // Get user ID from authenticated request
-    const legend = await createLegend(req.body, userId);
+    const userCompanySlug = req.user?.companySlug; // Get company slug from authenticated request
+    const legend = await createLegend(req.body, userId, userCompanySlug);
     
     return res.status(201).json({ 
       success: true, 
@@ -262,6 +294,49 @@ export const initDefaults = async (req, res) => {
       message: result.message 
     });
   } catch (err) {
+    return res.status(500).json({ 
+      success: false, 
+      message: err.message 
+    });
+  }
+};
+
+// GET - Fetch legends for a specific cabin based on its company slug
+export const getCabinLegends = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { active } = req.query;
+    
+    // Get cabin details to extract company slug
+    const cabin = await getCabinBySlug(slug);
+    if (!cabin) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Cabin not found' 
+      });
+    }
+    
+    let legends;
+    if (active === 'true') {
+      // Get only active legends for the cabin's company
+      legends = await getCompanyActiveLegends(cabin.companySlug);
+    } else {
+      // Get all legends for the cabin's company
+      legends = await getCompanyLegends(cabin.companySlug);
+    }
+    
+    return res.status(200).json({ 
+      success: true, 
+      data: legends 
+    });
+  } catch (err) {
+    console.error('Error in getCabinLegends:', err);
+    if (err.message === 'Cabin not found') {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Cabin not found' 
+      });
+    }
     return res.status(500).json({ 
       success: false, 
       message: err.message 

@@ -36,6 +36,7 @@ class Legend extends FirebaseModel {
       isActive: legendData.isActive !== undefined ? legendData.isActive : true,
       isDefault: legendData.isDefault || false,
       description: legendData.description || '',
+      companySlug: legendData.companySlug || null, // Company slug for company-specific legends
       createdBy: legendData.createdBy || null, // User ID who created this legend
       createdAt: new Date(),
       updatedAt: new Date()
@@ -73,6 +74,17 @@ class Legend extends FirebaseModel {
   // Get all active legends
   async findActive() {
     return this.find({ isActive: true });
+  }
+
+  // Get legends for a specific company (including defaults)
+  async findByCompanySlug(companySlug) {
+    // Get both default legends and company-specific legends
+    return this.find({
+      $or: [
+        { isDefault: true, isActive: true },
+        { companySlug: companySlug, isActive: true }
+      ]
+    });
   }
 
   // Get default legends

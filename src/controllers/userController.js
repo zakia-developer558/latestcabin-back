@@ -14,13 +14,43 @@ export const register = async (req, res) => {
     const { error, value } = registerValidation(req.body);
     
     if (error) {
+      // Create more detailed error messages
+      const validationErrors = error.details.map(detail => {
+        const field = detail.path.join('.');
+        let message = detail.message;
+        
+        // Provide more specific error context based on field
+        switch (field) {
+          case 'firstName':
+            message = `Fornavn: ${detail.message}`;
+            break;
+          case 'lastName':
+            message = `Etternavn: ${detail.message}`;
+            break;
+          case 'email':
+            message = `E-post: ${detail.message}`;
+            break;
+          case 'password':
+            message = `Passord: ${detail.message}`;
+            break;
+          case 'companyName':
+            message = `Firmanavn: ${detail.message}`;
+            break;
+          default:
+            message = `${field}: ${detail.message}`;
+        }
+        
+        return {
+          field,
+          message,
+          type: detail.type
+        };
+      });
+      
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors: error.details.map(detail => ({
-          field: detail.path.join('.'),
-          message: detail.message
-        }))
+        message: 'Validering feilet',
+        errors: validationErrors
       });
     }
     

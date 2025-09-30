@@ -15,6 +15,32 @@ export const getUserLegends = async (userId) => {
   }
 };
 
+// Get only company-specific legends (excluding defaults)
+export const getCompanyOnlyLegends = async (companySlug) => {
+  try {
+    const legends = await Legend.findByCompanySlug(companySlug);
+    // Filter out default legends (isDefault: true or companySlug: null)
+    return legends.filter(legend => !legend.isDefault && legend.companySlug === companySlug);
+  } catch (error) {
+    throw new Error(`Failed to fetch company-only legends: ${error.message}`);
+  }
+};
+
+// Get only active company-specific legends (excluding defaults)
+export const getCompanyOnlyActiveLegends = async (companySlug) => {
+  try {
+    const legends = await Legend.findByCompanySlug(companySlug);
+    // Filter out default legends and inactive legends
+    return legends.filter(legend => 
+      !legend.isDefault && 
+      legend.companySlug === companySlug && 
+      legend.isActive
+    );
+  } catch (error) {
+    throw new Error(`Failed to fetch company-only active legends: ${error.message}`);
+  }
+};
+
 // Get active legends for a specific user (default active legends + user's active custom legends)
 export const getUserActiveLegends = async (userId) => {
   try {
@@ -64,6 +90,26 @@ export const getActiveLegends = async () => {
   }
 };
 
+// Get legends for a specific company (including defaults)
+export const getCompanyLegends = async (companySlug) => {
+  try {
+    const legends = await Legend.findByCompanySlug(companySlug);
+    return legends;
+  } catch (error) {
+    throw new Error(`Failed to fetch company legends: ${error.message}`);
+  }
+};
+
+// Get active legends for a specific company (including defaults)
+export const getCompanyActiveLegends = async (companySlug) => {
+  try {
+    const legends = await Legend.findByCompanySlug(companySlug);
+    return legends.filter(legend => legend.isActive);
+  } catch (error) {
+    throw new Error(`Failed to fetch company active legends: ${error.message}`);
+  }
+};
+
 // Get legend by ID
 export const getLegendById = async (legendId) => {
   try {
@@ -78,7 +124,7 @@ export const getLegendById = async (legendId) => {
 };
 
 // Create new legend
-export const createLegend = async (legendData, userId) => {
+export const createLegend = async (legendData, userId, userCompanySlug = null) => {
   try {
     // Validate required fields
     if (!legendData.name || !legendData.color) {
@@ -107,10 +153,11 @@ export const createLegend = async (legendData, userId) => {
       }
     }
 
-    // Add user ID to legend data
+    // Add user ID and company slug to legend data
     const legendWithUser = {
       ...legendData,
-      createdBy: userId || null
+      createdBy: userId || null,
+      companySlug: legendData.isDefault ? null : (legendData.companySlug || userCompanySlug) // Use provided companySlug or fallback to user's company
     };
 
     const legend = await Legend.create(legendWithUser);

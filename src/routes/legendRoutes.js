@@ -9,7 +9,9 @@ import {
   toggleLegend,
   initDefaults,
   getPublicLegends,
-  getPublicLegendById
+  getPublicLegendById,
+  getCabinLegends,
+  getCompanySpecificLegends
 } from '../controllers/legendController.js';
 import {
   createLegendValidation,
@@ -25,6 +27,12 @@ router.get('/public', legendQueryValidation, getPublicLegends);
 
 // GET /legends/public/:id - Get legend by ID (public endpoint - no authentication required)
 router.get('/public/:id', legendIdValidation, getPublicLegendById);
+
+// GET /legends/cabin/:slug - Get legends for a specific cabin based on its company slug
+router.get('/cabin/:slug', legendQueryValidation, getCabinLegends);
+
+// GET /legends/company/:companySlug - Get only company-specific legends (excluding defaults)
+router.get('/company/:companySlug', legendQueryValidation, getCompanySpecificLegends);
 
 // GET /legends - Get all legends or active legends (requires authentication for user-specific filtering)
 router.get('/', authenticate, legendQueryValidation, getLegends);
