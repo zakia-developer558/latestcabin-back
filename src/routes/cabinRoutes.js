@@ -2,7 +2,7 @@ import express from 'express';
 import { authenticate, authorize } from '../middleware/authMiddleware.js';
 import { create, list, getBySlug, update, remove, listMyCabins, getCabinsByOwnerSlug, getCabinsByCompanySlug } from '../controllers/cabinController.js';
 import { assertCabinOwner } from '../middleware/ownershipMiddleware.js';
-import { availability, book, bookMulti, bookedDates, calendarData, block, cancel, getBookingDetails, getMyBookings, updateBooking, getOwnerAllBookings, getCabinAllBookings, updateBookingStatusController, getCabinBlocks, updateBlockController, removeBlockController, approveBookingController, rejectBookingController, getPendingBookingsController } from '../controllers/bookingController.js';
+import { availability, book, bookMulti, bookedDates, calendarData, block, cancel, ownerCancel, getBookingDetails, getMyBookings, updateBooking, getOwnerAllBookings, getCabinAllBookings, updateBookingStatusController, getCabinBlocks, updateBlockController, removeBlockController, approveBookingController, rejectBookingController, getPendingBookingsController } from '../controllers/bookingController.js';
 
 const router = express.Router();
 
@@ -20,6 +20,9 @@ router.post('/:slug/block', authenticate, authorize('owner'), assertCabinOwner, 
 router.put('/update/:slug', authenticate, authorize('owner'), assertCabinOwner, update);
 router.delete('/delete/:slug', authenticate, authorize('owner'), assertCabinOwner, remove);
 router.delete('/bookings/:bookingId/cancel', cancel);
+
+// Owner-specific booking cancellation route
+router.put('/:slug/bookings/:bookingId/owner-cancel', authenticate, authorize('owner'), assertCabinOwner, ownerCancel);
 
 // Get specific booking details (accessible by booking owner or cabin owner)
 router.get('/bookings/:bookingId', authenticate, getBookingDetails);

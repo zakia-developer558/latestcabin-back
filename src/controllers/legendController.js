@@ -44,7 +44,7 @@ export const getPublicLegendById = async (req, res) => {
   }
 };
 
-// GET - Get only company-specific legends (excluding defaults) by company slug
+// GET - Get company legends (including defaults) by company slug
 export const getCompanySpecificLegends = async (req, res) => {
   try {
     const { companySlug } = req.params;
@@ -52,9 +52,11 @@ export const getCompanySpecificLegends = async (req, res) => {
 
     let legends;
     if (active === 'true') {
-      legends = await getCompanyOnlyActiveLegends(companySlug);
+      // Get active legends for the company (includes default legends)
+      legends = await getCompanyActiveLegends(companySlug);
     } else {
-      legends = await getCompanyOnlyLegends(companySlug);
+      // Get all legends for the company (includes default legends)
+      legends = await getCompanyLegends(companySlug);
     }
 
     return res.status(200).json({
@@ -62,7 +64,7 @@ export const getCompanySpecificLegends = async (req, res) => {
       data: legends
     });
   } catch (err) {
-    console.error('Error fetching company-only legends:', err);
+    console.error('Error fetching company legends:', err);
     return res.status(500).json({ 
       success: false, 
       message: err.message 

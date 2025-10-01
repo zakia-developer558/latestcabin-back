@@ -512,6 +512,12 @@ export const blockDates = async (slug, payload, ownerUser) => {
     throw err;
   }
 
+  console.log('🏠 Cabin found:', {
+    id: cabin._id,
+    slug: cabin.slug,
+    owner: cabin.owner
+  });
+
   // Handle the case where payload might be wrapped in a 'value' object from validation
   const actualPayload = payload.value || payload;
   const { action = 'block', startDate, endDate, reason, dates, startHalf = 'AM', endHalf = 'PM', date, half = 'FULL' } = actualPayload;
@@ -521,17 +527,53 @@ export const blockDates = async (slug, payload, ownerUser) => {
     const removedBlocks = [];
     for (const range of dateRanges) {
       const { start, end } = range;
-      const blocks = await Unavailability.find({
-        cabin: cabin._id,
-        $or: [
-          { startDate: { $lte: end }, endDate: { $gte: start } }
-        ]
+      
+      console.log('🔍 Searching for blocks:', {
+        cabinId: cabin._id,
+        cabinSlug: cabin.slug,
+        searchRange: { start: start.toISOString(), end: end.toISOString() }
       });
       
-      for (const block of blocks) {
-        await block.deleteOne();
-        removedBlocks.push(block);
-      }
+      // Instead of using complex $or with range queries, get all blocks for this cabin
+      // and filter them in memory to avoid Firestore composite index requirements
+      const allBlocks = await Unavailability.find({
+        cabin: cabin._id
+      });
+      
+      console.log('📋 Found all blocks for cabin:', allBlocks.length);
+      
+      // Filter blocks that overlap with the target date range in memory
+      const overlappingBlocks = allBlocks.filter(block => {
+        const blockStart = new Date(block.startDate);
+        const blockEnd = new Date(block.endDate);
+        const targetStart = new Date(start);
+        const targetEnd = new Date(end);
+        
+        // Check if ranges overlap: block overlaps if blockStart <= targetEnd && blockEnd >= targetStart
+        const overlaps = blockStart <= targetEnd && blockEnd >= targetStart;
+        
+        console.log('🔍 Checking block overlap:', {
+          blockId: block._id,
+          blockRange: { start: blockStart.toISOString(), end: blockEnd.toISOString() },
+          targetRange: { start: targetStart.toISOString(), end: targetEnd.toISOString() },
+          overlaps
+        });
+        
+        return overlaps;
+      });
+      
+      console.log('📋 Found overlapping blocks:', overlappingBlocks.length, overlappingBlocks.map(b => ({
+        id: b._id,
+        startDate: b.startDate.toISOString ? b.startDate.toISOString() : b.startDate,
+        endDate: b.endDate.toISOString ? b.endDate.toISOString() : b.endDate,
+        reason: b.reason,
+        cabinId: b.cabin
+      })));
+      
+      for (const block of overlappingBlocks) {
+         await Unavailability.findByIdAndDelete(block._id);
+         removedBlocks.push(block);
+       }
     }
     return removedBlocks;
   };
@@ -664,8 +706,8 @@ export const cancelBooking = async (bookingId, user) => {
     throw new Error('Booking is already cancelled');
   }
 
-  // Check if booking is in the past
-  if (new Date() > bookingWithCabin.startDateTime) {
+  // Check if booking is in the past (only for user cancellations, not owner cancellations)
+  if (user.role !== 'owner' && new Date() > bookingWithCabin.startDateTime) {
     throw new Error('Cannot cancel past bookings');
   }
 
@@ -676,6 +718,53 @@ export const cancelBooking = async (bookingId, user) => {
   });
 
   return { message: 'Booking cancelled successfully', booking: updatedBooking };
+};
+
+// New function specifically for owners to cancel approved bookings
+export const ownerCancelBooking = async (bookingId, user) => {
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+  
+  // Populate cabin data
+  const populatedBooking = await Booking.populate([booking], [{ path: 'cabin', select: 'owner slug', model: 'Cabin' }]);
+  const bookingWithCabin = populatedBooking[0];
+
+  // Check if user is the cabin owner
+  const isOwner = user.role === 'owner' && String(bookingWithCabin.cabin.owner) === String(user.userId);
+
+  if (!isOwner) {
+    const err = new Error('Forbidden - Only cabin owners can use this endpoint');
+    err.status = 403;
+    throw err;
+  }
+
+  // Check if booking is already cancelled or rejected
+  if (bookingWithCabin.status === 'cancelled') {
+    throw new Error('Booking is already cancelled');
+  }
+
+  if (bookingWithCabin.status === 'rejected') {
+    throw new Error('Cannot cancel a rejected booking');
+  }
+
+  // Owners can cancel bookings in any status (pending, approved, etc.) and even past bookings
+  // This gives owners full control over their cabin bookings
+
+  // Update booking status to cancelled
+  const updatedBooking = await Booking.findByIdAndUpdate(bookingWithCabin._id, { 
+    status: 'cancelled',
+    updatedAt: new Date(),
+    cancelledBy: 'owner', // Track who cancelled the booking
+    cancelledAt: new Date()
+  });
+
+  return { 
+    message: 'Booking cancelled successfully by owner', 
+    booking: updatedBooking,
+    previousStatus: bookingWithCabin.status
+  };
 };
 
 // Add these functions to your existing bookingService.js file
@@ -711,7 +800,7 @@ export const getUserBookings = async (userId, { limit = 20, page = 1, status }) 
 
   const skip = (Number(page) - 1) * Number(limit);
   const [items, total] = await Promise.all([
-    Booking.find(filter, { sort: { createdAt: -1 }, skip, limit: Number(limit) }).then(bookings => 
+    Booking.find(filter, { sort: { startDate: 1 }, skip, limit: Number(limit) }).then(bookings => 
       Booking.populate(bookings, [{ path: 'cabin', select: 'name slug address city', model: 'Cabin' }])
     ),
     Booking.countDocuments(filter)
@@ -774,7 +863,7 @@ export const getOwnerBookings = async (ownerId, { limit = 20, page = 1, status, 
 
   const skip = (Number(page) - 1) * Number(limit);
   const [items, total] = await Promise.all([
-    Booking.find(filter, { sort: { createdAt: -1 }, skip, limit: Number(limit) }).then(bookings => 
+    Booking.find(filter, { sort: { startDate: 1 }, skip, limit: Number(limit) }).then(bookings => 
       Booking.populate(bookings, [
         { path: 'cabin', select: 'name slug address city', model: 'Cabin' },
         { path: 'user', select: 'name email', model: 'User' }

@@ -1,5 +1,5 @@
 import { availabilityValidation, createBookingValidation, createMultiBookingValidation, blockDatesValidation } from '../validators/bookingValidators.js';
-import { checkAvailability, createBooking, createMultiBooking, getBookedDates, getCalendarData, blockDates, cancelBooking, getBookingById, getUserBookings, getOwnerBookings, getCabinBookings, getBlocks, removeBlock, updateBlock, getPendingBookings, approveBooking, rejectBooking } from '../services/bookingService.js';
+import { checkAvailability, createBooking, createMultiBooking, getBookedDates, getCalendarData, blockDates, cancelBooking, ownerCancelBooking, getBookingById, getUserBookings, getOwnerBookings, getCabinBookings, getBlocks, removeBlock, updateBlock, getPendingBookings, approveBooking, rejectBooking } from '../services/bookingService.js';
 
 export const availability = async (req, res) => {
   try {
@@ -130,6 +130,29 @@ export const cancel = async (req, res) => {
     if (err.message === 'Booking not found') return res.status(404).json({ success: false, message: 'Booking not found' });
     if (err.message === 'Booking is already cancelled') return res.status(400).json({ success: false, message: err.message });
     if (err.message === 'Cannot cancel past bookings') return res.status(400).json({ success: false, message: err.message });
+    return res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+export const ownerCancel = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({ success: false, message: 'Only owners can use this endpoint' });
+    }
+
+    const { bookingId } = req.params;
+    const result = await ownerCancelBooking(bookingId, req.user);
+    
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    if (err.status === 403) return res.status(403).json({ success: false, message: err.message });
+    if (err.message === 'Booking not found') return res.status(404).json({ success: false, message: 'Booking not found' });
+    if (err.message === 'Booking is already cancelled') return res.status(400).json({ success: false, message: err.message });
+    if (err.message === 'Cannot cancel a rejected booking') return res.status(400).json({ success: false, message: err.message });
     return res.status(400).json({ success: false, message: err.message });
   }
 };

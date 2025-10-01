@@ -152,8 +152,34 @@ class FirebaseModel {
         
         // Apply the condition to the subquery
         for (const [key, value] of Object.entries(orCondition)) {
-          console.log(`🔧 Adding condition: ${key} == ${value}`);
-          subQuery = subQuery.where(key, '==', value);
+          if (typeof value === 'object' && value !== null) {
+            // Handle MongoDB-style operators within $or conditions
+            if (value.$in) {
+              console.log(`🔧 Adding $or condition: ${key} in [${value.$in}]`);
+              subQuery = subQuery.where(key, 'in', value.$in);
+            } else if (value.$gt) {
+              console.log(`🔧 Adding $or condition: ${key} > ${value.$gt}`);
+              subQuery = subQuery.where(key, '>', value.$gt);
+            } else if (value.$gte) {
+              console.log(`🔧 Adding $or condition: ${key} >= ${value.$gte}`);
+              subQuery = subQuery.where(key, '>=', value.$gte);
+            } else if (value.$lt) {
+              console.log(`🔧 Adding $or condition: ${key} < ${value.$lt}`);
+              subQuery = subQuery.where(key, '<', value.$lt);
+            } else if (value.$lte) {
+              console.log(`🔧 Adding $or condition: ${key} <= ${value.$lte}`);
+              subQuery = subQuery.where(key, '<=', value.$lte);
+            } else if (value.$ne) {
+              console.log(`🔧 Adding $or condition: ${key} != ${value.$ne}`);
+              subQuery = subQuery.where(key, '!=', value.$ne);
+            } else {
+              console.log(`🔧 Adding $or condition: ${key} == ${value}`);
+              subQuery = subQuery.where(key, '==', value);
+            }
+          } else {
+            console.log(`🔧 Adding $or condition: ${key} == ${value}`);
+            subQuery = subQuery.where(key, '==', value);
+          }
         }
         
         // Apply other non-$or filters to each subquery

@@ -1,5 +1,5 @@
 import { createCabin, listCabins, getCabinBySlug, updateCabin, deleteCabin, getMyCabins, getCabinsByOwnerSlugService, getCabinsByCompanySlugService } from '../services/cabinService.js';
-import { createCabinValidation } from '../validators/cabinValidators.js';
+import { createCabinValidation, updateCabinValidation } from '../validators/cabinValidators.js';
 
 export const create = async (req, res) => {
   try {
@@ -54,10 +54,21 @@ export const getBySlug = async (req, res) => {
 
 export const update = async (req, res) => {
   try {
+    // Validate input data
+    const { error, value } = updateCabinValidation(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.details.map(d => ({ field: d.path.join('.'), message: d.message }))
+      });
+    }
+
     if (!req.user || req.user.role !== 'owner') {
       return res.status(403).json({ success: false, message: 'Forbidden' });
     }
-    const cabin = await updateCabin(req.params.slug, req.body, req.user);
+    
+    const cabin = await updateCabin(req.params.slug, value, req.user);
     return res.status(200).json({ success: true, data: cabin });
   } catch (err) {
     if (err.status === 403) return res.status(403).json({ success: false, message: 'Forbidden' });
