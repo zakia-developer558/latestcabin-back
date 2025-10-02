@@ -121,16 +121,9 @@ class FirebaseModel {
   }
 
   async findOne(filter) {
-    const collection = this._ensureCollection();
-    let query = collection;
-    Object.entries(filter).forEach(([key, value]) => {
-      query = query.where(key, '==', value);
-    });
-    const snapshot = await query.limit(1).get();
-    if (snapshot.empty) return null;
-    const doc = snapshot.docs[0];
-    const result = { ...doc.data(), _id: doc.id, id: doc.id };
-    return this._convertFirebaseTimestamps(result);
+    // Reuse the richer filtering from `find` to support operators like $gt/$lte/$in
+    const results = await this.find(filter, { limit: 1 });
+    return results && results.length > 0 ? results[0] : null;
   }
 
   async find(filter = {}, projection = {}) {
@@ -138,6 +131,14 @@ class FirebaseModel {
     
     await this._ensureCollection();
     let query = this.db.collection(this.collectionName);
+
+    // Helper to map special keys to Firestore FieldPath
+    const resolveFieldPath = (key) => {
+      if (key === '_id') {
+        return admin.firestore.FieldPath.documentId();
+      }
+      return key;
+    };
 
     // Handle $or operator specially
     if (filter.$or) {
@@ -156,29 +157,29 @@ class FirebaseModel {
             // Handle MongoDB-style operators within $or conditions
             if (value.$in) {
               console.log(`🔧 Adding $or condition: ${key} in [${value.$in}]`);
-              subQuery = subQuery.where(key, 'in', value.$in);
+              subQuery = subQuery.where(resolveFieldPath(key), 'in', value.$in);
             } else if (value.$gt) {
               console.log(`🔧 Adding $or condition: ${key} > ${value.$gt}`);
-              subQuery = subQuery.where(key, '>', value.$gt);
+              subQuery = subQuery.where(resolveFieldPath(key), '>', value.$gt);
             } else if (value.$gte) {
               console.log(`🔧 Adding $or condition: ${key} >= ${value.$gte}`);
-              subQuery = subQuery.where(key, '>=', value.$gte);
+              subQuery = subQuery.where(resolveFieldPath(key), '>=', value.$gte);
             } else if (value.$lt) {
               console.log(`🔧 Adding $or condition: ${key} < ${value.$lt}`);
-              subQuery = subQuery.where(key, '<', value.$lt);
+              subQuery = subQuery.where(resolveFieldPath(key), '<', value.$lt);
             } else if (value.$lte) {
               console.log(`🔧 Adding $or condition: ${key} <= ${value.$lte}`);
-              subQuery = subQuery.where(key, '<=', value.$lte);
+              subQuery = subQuery.where(resolveFieldPath(key), '<=', value.$lte);
             } else if (value.$ne) {
               console.log(`🔧 Adding $or condition: ${key} != ${value.$ne}`);
-              subQuery = subQuery.where(key, '!=', value.$ne);
+              subQuery = subQuery.where(resolveFieldPath(key), '!=', value.$ne);
             } else {
               console.log(`🔧 Adding $or condition: ${key} == ${value}`);
-              subQuery = subQuery.where(key, '==', value);
+              subQuery = subQuery.where(resolveFieldPath(key), '==', value);
             }
           } else {
             console.log(`🔧 Adding $or condition: ${key} == ${value}`);
-            subQuery = subQuery.where(key, '==', value);
+            subQuery = subQuery.where(resolveFieldPath(key), '==', value);
           }
         }
         
@@ -190,20 +191,20 @@ class FirebaseModel {
           if (typeof value === 'object' && value !== null) {
             // Handle MongoDB-style operators
             if (value.$in) {
-              subQuery = subQuery.where(key, 'in', value.$in);
+              subQuery = subQuery.where(resolveFieldPath(key), 'in', value.$in);
             } else if (value.$gt) {
-              subQuery = subQuery.where(key, '>', value.$gt);
+              subQuery = subQuery.where(resolveFieldPath(key), '>', value.$gt);
             } else if (value.$gte) {
-              subQuery = subQuery.where(key, '>=', value.$gte);
+              subQuery = subQuery.where(resolveFieldPath(key), '>=', value.$gte);
             } else if (value.$lt) {
-              subQuery = subQuery.where(key, '<', value.$lt);
+              subQuery = subQuery.where(resolveFieldPath(key), '<', value.$lt);
             } else if (value.$lte) {
-              subQuery = subQuery.where(key, '<=', value.$lte);
+              subQuery = subQuery.where(resolveFieldPath(key), '<=', value.$lte);
             } else {
-              subQuery = subQuery.where(key, '==', value);
+              subQuery = subQuery.where(resolveFieldPath(key), '==', value);
             }
           } else {
-            subQuery = subQuery.where(key, '==', value);
+            subQuery = subQuery.where(resolveFieldPath(key), '==', value);
           }
         }
         
@@ -246,15 +247,15 @@ class FirebaseModel {
           memoryFilters[key] = { $nin: value.$nin };
         } else if (value.$in) {
           console.log(`📝 Found $in operator for ${key}:`, value.$in);
-          query = query.where(key, 'in', value.$in);
+          query = query.where(resolveFieldPath(key), 'in', value.$in);
         } else if (value.$gt) {
-          query = query.where(key, '>', value.$gt);
+          query = query.where(resolveFieldPath(key), '>', value.$gt);
         } else if (value.$gte) {
-          query = query.where(key, '>=', value.$gte);
+          query = query.where(resolveFieldPath(key), '>=', value.$gte);
         } else if (value.$lt) {
-          query = query.where(key, '<', value.$lt);
+          query = query.where(resolveFieldPath(key), '<', value.$lt);
         } else if (value.$lte) {
-          query = query.where(key, '<=', value.$lte);
+          query = query.where(resolveFieldPath(key), '<=', value.$lte);
         } else {
           // For other complex objects, use equality
           firestoreFilters[key] = value;
@@ -268,7 +269,7 @@ class FirebaseModel {
     // Apply simple equality filters to Firestore query
     for (const [key, value] of Object.entries(firestoreFilters)) {
       console.log(`🔧 Adding Firestore filter: ${key} == ${value}`);
-      query = query.where(key, '==', value);
+      query = query.where(resolveFieldPath(key), '==', value);
     }
 
     // Apply sorting if specified

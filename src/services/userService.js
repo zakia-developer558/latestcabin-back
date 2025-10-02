@@ -158,14 +158,9 @@ export const resetPassword = async (token, newPassword) => {
   try {
     // Verify token
     const decoded = verifyToken(token);
-    
-    const user = await User.findOne({
-      _id: decoded.userId,
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: new Date() }
-    });
-    
-    if (!user) {
+    // Fetch user by ID and validate token and expiry in memory to avoid Firestore composite index constraints
+    const user = await User.findById(decoded.userId);
+    if (!user || user.resetPasswordToken !== token || !user.resetPasswordExpires || new Date(user.resetPasswordExpires) <= new Date()) {
       throw new Error('Invalid or expired reset token');
     }
     

@@ -1,38 +1,7 @@
-import sgMail from '@sendgrid/mail';
+import { sendEmail as mailSendEmail } from './sendgridMailer.js';
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
-export const sendEmail = async (to, subject, html) => {
-  try {
-    // Check if we're in development mode and should skip email sending
-    if (process.env.NODE_ENV === 'development' && process.env.SKIP_EMAILS === 'true') {
-      console.log('📧 Email sending skipped in development mode');
-      console.log('📧 Would send to:', to);
-      console.log('📧 Subject:', subject);
-      return;
-    }
-
-    const msg = {
-      to,
-      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@cabinbooking.com', // Use verified sender from env
-      subject,
-      html
-    };
-    
-    await sgMail.send(msg);
-    console.log('Email sent successfully to:', to);
-  } catch (error) {
-    console.error('Error sending email:', error);
-    
-    // If it's a credits exceeded error, log it but don't crash the app
-    if (error.response?.body?.errors?.[0]?.message?.includes('Maximum credits exceeded')) {
-      console.error('⚠️  SendGrid credits exceeded. Email not sent.');
-      return; // Don't throw error, just log it
-    }
-    
-    throw new Error('Failed to send email');
-  }
-};
+// Delegate all email sending to the centralized SendGrid mailer
+// Re-export pattern avoided to keep compatibility in this file
 
 // OTP EMAIL DISABLED - Commented out for development
 /*
@@ -70,8 +39,8 @@ export const sendPasswordResetEmail = async (email, token, firstName) => {
       <p>This link will expire in 1 hour.</p>
     </div>
   `;
-  
-  return await sendEmail(email, subject, html);
+  // Use the same mailer as registration/OTP for consistency
+  return await mailSendEmail(email, subject, html);
 };
 
 // WELCOME EMAIL DISABLED - Commented out for development
