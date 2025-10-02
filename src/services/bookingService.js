@@ -1,6 +1,8 @@
 import Cabin from '../models/Cabin.js';
 import Booking from '../models/Booking.js';
 import Unavailability from '../models/Unavailability.js';
+import User from '../models/User.js';
+import { sendBookingCreatedOwnerEmail, sendBookingCreatedGuestEmail, sendBookingStatusEmail } from '../utils/notificationEmails.js';
 
 const rangesOverlap = (startA, endA, startB, endB) => {
   return startA < endB && startB < endA;
@@ -144,6 +146,19 @@ export const createBooking = async (slug, payload, user) => {
       for (const bookingData of bookingsToCreate) {
         const booking = await Booking.create(bookingData);
         created.push(booking);
+
+        // Notify owner and guest for each segment (non-blocking)
+        try {
+          const ownerEmail = cabin.email || (await User.findById(cabin.owner))?.email;
+          if (ownerEmail) {
+            await sendBookingCreatedOwnerEmail(ownerEmail, cabin.name, bookingData.guestName, bookingData.startDate, bookingData.endDate, booking.orderNo);
+          }
+          if (bookingData.guestEmail) {
+            await sendBookingCreatedGuestEmail(bookingData.guestEmail, bookingData.guestName, cabin.name, bookingData.startDate, bookingData.endDate, 'pending');
+          }
+        } catch (e) {
+          console.warn('Booking created email (multi) failed:', e?.message || e);
+        }
       }
       
       return created;
@@ -234,6 +249,19 @@ export const createBooking = async (slug, payload, user) => {
       guestAffiliation: payload.guestAffiliation,
       status: 'pending'
     });
+    
+    // Notify owner and guest (non-blocking)
+    try {
+      const ownerEmail = cabin.email || (await User.findById(cabin.owner))?.email;
+      if (ownerEmail) {
+        await sendBookingCreatedOwnerEmail(ownerEmail, cabin.name, payload.guestName, startDate, endDate, booking.orderNo);
+      }
+      if (payload.guestEmail) {
+        await sendBookingCreatedGuestEmail(payload.guestEmail, payload.guestName, cabin.name, startDate, endDate, 'pending');
+      }
+    } catch (e) {
+      console.warn('Booking created email failed:', e?.message || e);
+    }
 
     return booking;
   }
@@ -299,9 +327,9 @@ export const createMultiBooking = async (slug, payload, user) => {
 
 export const getBookedDates = async (slug) => {
   const cabin = await Cabin.findOne({ slug });
-  if (!cabin) throw new Error('Cabin not found');
+  if (!cabin) throw new Error('Hytte ikke funnet');
   
-  console.log(`🔍 getBookedDates: Looking for bookings for cabin ${slug} (ID: ${cabin._id})`);
+  console.log(`🔍 getBookedDates: Ser etter bookinger for hytte ${slug} (ID: ${cabin._id})`);
   
   const [bookings, blocks] = await Promise.all([
     Booking.find({ cabin: cabin._id, status: { $nin: ['cancelled', 'rejected'] } }, { startDate: 1, endDate: 1, status: 1, orderNo: 1, guestName: 1, _id: 0 }),
@@ -716,6 +744,18 @@ export const cancelBooking = async (bookingId, user) => {
     status: 'cancelled',
     updatedAt: new Date()
   });
+  
+  // Notify booker about cancellation (non-blocking)
+  try {
+    const cabinFull = await Cabin.findById(bookingWithCabin.cabin._id || bookingWithCabin.cabin);
+    const toEmail = bookingWithCabin.guestEmail || (await User.findById(bookingWithCabin.user))?.email;
+    const guestName = bookingWithCabin.guestName || (await User.findById(bookingWithCabin.user))?.firstName;
+    if (toEmail) {
+      await sendBookingStatusEmail(toEmail, guestName, cabinFull?.name || 'Hytta', bookingWithCabin.startDate, bookingWithCabin.endDate, 'cancelled');
+    }
+  } catch (e) {
+    console.warn('Cancel booking email failed:', e?.message || e);
+  }
 
   return { message: 'Booking cancelled successfully', booking: updatedBooking };
 };
@@ -759,6 +799,18 @@ export const ownerCancelBooking = async (bookingId, user) => {
     cancelledBy: 'owner', // Track who cancelled the booking
     cancelledAt: new Date()
   });
+
+  // Notify booker about owner cancellation (non-blocking)
+  try {
+    const cabinFull = await Cabin.findById(bookingWithCabin.cabin._id || bookingWithCabin.cabin);
+    const toEmail = bookingWithCabin.guestEmail || (await User.findById(bookingWithCabin.user))?.email;
+    const guestName = bookingWithCabin.guestName || (await User.findById(bookingWithCabin.user))?.firstName;
+    if (toEmail) {
+      await sendBookingStatusEmail(toEmail, guestName, cabinFull?.name || 'Hytta', bookingWithCabin.startDate, bookingWithCabin.endDate, 'cancelled');
+    }
+  } catch (e) {
+    console.warn('Owner-cancel booking email failed:', e?.message || e);
+  }
 
   return { 
     message: 'Booking cancelled successfully by owner', 
@@ -1047,6 +1099,18 @@ export const approveBooking = async (bookingId, user) => {
     status: 'approved',
     updatedAt: new Date()
   }, { new: true });
+  
+  // Notify booker about approval (non-blocking)
+  try {
+    const cabinFull = await Cabin.findById(bookingWithCabin.cabin._id || bookingWithCabin.cabin);
+    const toEmail = bookingWithCabin.guestEmail || (await User.findById(bookingWithCabin.user))?.email;
+    const guestName = bookingWithCabin.guestName || (await User.findById(bookingWithCabin.user))?.firstName;
+    if (toEmail) {
+      await sendBookingStatusEmail(toEmail, guestName, cabinFull?.name || 'Hytta', bookingWithCabin.startDate, bookingWithCabin.endDate, 'approved');
+    }
+  } catch (e) {
+    console.warn('Approve booking email failed:', e?.message || e);
+  }
 
   return { message: 'Booking approved successfully', booking: updatedBooking };
 };
@@ -1081,6 +1145,18 @@ export const rejectBooking = async (bookingId, user) => {
     status: 'rejected',
     updatedAt: new Date()
   }, { new: true });
+  
+  // Notify booker about rejection (non-blocking)
+  try {
+    const cabinFull = await Cabin.findById(bookingWithCabin.cabin._id || bookingWithCabin.cabin);
+    const toEmail = bookingWithCabin.guestEmail || (await User.findById(bookingWithCabin.user))?.email;
+    const guestName = bookingWithCabin.guestName || (await User.findById(bookingWithCabin.user))?.firstName;
+    if (toEmail) {
+      await sendBookingStatusEmail(toEmail, guestName, cabinFull?.name || 'Hytta', bookingWithCabin.startDate, bookingWithCabin.endDate, 'rejected');
+    }
+  } catch (e) {
+    console.warn('Reject booking email failed:', e?.message || e);
+  }
 
   return { message: 'Booking rejected successfully', booking: updatedBooking };
 };

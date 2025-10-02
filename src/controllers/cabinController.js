@@ -71,9 +71,9 @@ export const update = async (req, res) => {
     const cabin = await updateCabin(req.params.slug, value, req.user);
     return res.status(200).json({ success: true, data: cabin });
   } catch (err) {
-    if (err.status === 403) return res.status(403).json({ success: false, message: 'Forbidden' });
-    if (err.code === 11000) return res.status(409).json({ success: false, message: 'Cabin with this name already exists' });
-    if (err.message === 'Cabin not found') return res.status(404).json({ success: false, message: 'Cabin not found' });
+    if (err.status === 403) return res.status(403).json({ success: false, message: 'Forbudt' });
+    if (err.code === 11000) return res.status(409).json({ success: false, message: 'Hytte med dette navnet finnes allerede' });
+    if (err.message === 'Cabin not found') return res.status(404).json({ success: false, message: 'Hytte ikke funnet' });
     return res.status(400).json({ success: false, message: err.message });
   }
 };

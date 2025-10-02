@@ -1,6 +1,7 @@
 import Cabin from '../models/Cabin.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
+import { sendCabinCreatedEmail } from '../utils/notificationEmails.js';
 
 const generateSlug = (name) => {
   return name
@@ -48,6 +49,13 @@ export const createCabin = async (payload, ownerUser) => {
       color: payload.color,
       halfdayAvailability: payload.halfdayAvailability ?? false
     });
+    
+    // Send cabin creation email to owner (non-blocking)
+    try {
+      await sendCabinCreatedEmail(owner.email, owner.firstName, cabin);
+    } catch (e) {
+      console.warn('Cabin created email failed:', e?.message || e);
+    }
 
     return cabin;
   } catch (error) {

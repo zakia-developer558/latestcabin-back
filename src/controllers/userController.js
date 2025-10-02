@@ -2,10 +2,10 @@ import * as authService from '../services/userService.js';
 import {
   registerValidation,
   loginValidation,
-  // verifyOTPValidation, // OTP VALIDATION DISABLED - Commented out for development
+  verifyOTPValidation,
   forgotPasswordValidation,
   resetPasswordValidation,
-  // resendOTPValidation // OTP RESEND VALIDATION DISABLED - Commented out for development
+  resendOTPValidation
 } from '../validators/userValidators.js';
 
 export const register = async (req, res) => {
@@ -68,8 +68,6 @@ export const register = async (req, res) => {
   }
 };
 
-// OTP VERIFICATION DISABLED - Commented out for development
-/*
 export const verifyOTP = async (req, res) => {
   try {
     // Validate request body
@@ -78,7 +76,7 @@ export const verifyOTP = async (req, res) => {
     if (error) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
+        message: 'Validering feilet',
         errors: error.details.map(detail => ({
           field: detail.path.join('.'),
           message: detail.message
@@ -100,7 +98,6 @@ export const verifyOTP = async (req, res) => {
     });
   }
 };
-*/
 
 export const login = async (req, res) => {
   try {
@@ -195,8 +192,6 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-// OTP RESEND DISABLED - Commented out for development
-/*
 export const resendOTP = async (req, res) => {
   try {
     // Validate request body
@@ -205,7 +200,7 @@ export const resendOTP = async (req, res) => {
     if (error) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
+        message: 'Validering feilet',
         errors: error.details.map(detail => ({
           field: detail.path.join('.'),
           message: detail.message
@@ -227,4 +222,3 @@ export const resendOTP = async (req, res) => {
     });
   }
 };
-*/

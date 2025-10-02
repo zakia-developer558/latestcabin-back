@@ -1,10 +1,7 @@
 import User from '../models/User.js';
 import { generateToken, verifyToken } from '../utils/jwt.js';
-import { 
-  // sendOTPEmail, // OTP EMAIL DISABLED - Commented out for development
-  sendPasswordResetEmail, 
-  // sendWelcomeEmail // WELCOME EMAIL DISABLED - Commented out for development
-} from '../utils/emailUtils.js';
+import { sendPasswordResetEmail } from '../utils/emailUtils.js';
+import { sendWelcomeEmail, sendOTPEmail } from '../utils/notificationEmails.js';
 
 export const registerUser = async (userData) => {
   const { email, firstName, lastName, password, companyName, role = 'user' } = userData;
@@ -23,23 +20,20 @@ export const registerUser = async (userData) => {
     password,
     companyName,
     role,
-    isVerified: true // Mark user as verified on registration
+    isVerified: false // Require OTP verification
   });
   
-  // OTP EMAIL DISABLED - Commented out for development
-  // Send OTP email
-  // await sendOTPEmail(email, otpCode, firstName);
+  // Generate OTP and send email (non-blocking)
+  try {
+    const otpCode = await User.generateOTP(user._id);
+    await sendOTPEmail(user.email, otpCode, user.firstName);
+  } catch (e) {
+    console.warn('OTP email failed:', e?.message || e);
+  }
   
   // Generate token for immediate login after registration
-  const token = generateToken({ 
-    userId: user._id, 
-    email: user.email, 
-    role: user.role 
-  });
-  
   return {
-      message: 'Registreringen var vellykket. Du er nå logget inn.',
-      token,
+      message: 'Registreringen var vellykket. Vi har sendt en engangskode til e-posten din.',
       user: {
         id: user._id,
         firstName: user.firstName,
@@ -48,64 +42,56 @@ export const registerUser = async (userData) => {
         slug: user.slug,
         companyName: user.companyName,
         companySlug: user.companySlug,
-        role: user.role
+        role: user.role,
+        isVerified: false
       }
     };
 };
 
-// OTP VERIFICATION DISABLED - Commented out for development
-/*
 export const verifyOTP = async (email, otp) => {
   const user = await User.findOne({ email });
-  
   if (!user) {
-    throw new Error('User not found');
+    throw new Error('Bruker ikke funnet');
   }
-  
   if (user.isVerified) {
-    throw new Error('User is already verified');
+    throw new Error('Bruker er allerede bekreftet');
   }
-  
   if (!user.otp || !user.otp.code || !user.otp.expiresAt) {
-    throw new Error('No OTP found for this user');
+    throw new Error('Ingen OTP funnet for denne brukeren');
   }
-  
   if (user.otp.code !== otp) {
-    throw new Error('Invalid OTP');
+    throw new Error('Ugyldig OTP-kode');
   }
-  
-  if (user.otp.expiresAt < new Date()) {
-    throw new Error('OTP has expired');
+  if (new Date(user.otp.expiresAt) < new Date()) {
+    throw new Error('OTP-koden har utløpt');
   }
-  
-  // Mark user as verified and clear OTP
-  user.isVerified = true;
-  user.otp = undefined;
-  await user.save();
-  
-  // Send welcome email
-  await sendWelcomeEmail(email, user.firstName);
-  
-  // Generate token
-  const token = generateToken({ 
-    userId: user._id, 
-    email: user.email, 
-    role: user.role 
-  });
-  
+
+  await User.findByIdAndUpdate(user._id, { isVerified: true, otp: undefined });
+
+  // Send welcome email (non-blocking)
+  try {
+    await sendWelcomeEmail(email, user.firstName);
+  } catch (e) {
+    console.warn('Welcome email failed:', e?.message || e);
+  }
+
+  const token = generateToken({ userId: user._id, email: user.email, role: user.role });
   return {
-    message: 'Account verified successfully',
+    message: 'Konto bekreftet',
     token,
     user: {
       id: user._id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      role: user.role
+      slug: user.slug,
+      companyName: user.companyName,
+      companySlug: user.companySlug,
+      role: user.role,
+      isVerified: true
     }
   };
 };
-*/
 
 export const loginUser = async (email, password) => {
   const user = await User.findOne({ email });
@@ -198,28 +184,15 @@ export const resetPassword = async (token, newPassword) => {
   }
 };
 
-// OTP RESEND DISABLED - Commented out for development
-/*
 export const resendOTP = async (email) => {
   const user = await User.findOne({ email });
-  
   if (!user) {
-    throw new Error('User not found');
+    throw new Error('Bruker ikke funnet');
   }
-  
   if (user.isVerified) {
-    throw new Error('User is already verified');
+    throw new Error('Bruker er allerede bekreftet');
   }
-  
-  // Generate new OTP
-  const otpCode = user.generateOTP();
-  await user.save();
-  
-  // Send OTP email
+  const otpCode = await User.generateOTP(user._id);
   await sendOTPEmail(email, otpCode, user.firstName);
-  
-  return {
-    message: 'OTP sent successfully'
-  };
+  return { message: 'OTP sendt på e-post' };
 };
-*/

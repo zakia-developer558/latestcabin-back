@@ -461,6 +461,23 @@ class FirebaseModel {
     const collection = this._ensureCollection();
     const docRef = collection.doc(id.toString());
     let cleanUpdate = update.$set || update;
+    // Replace undefined values with FieldValue.delete() to satisfy Firestore
+    const deleteSentinel = admin.firestore.FieldValue.delete();
+    const sanitize = (obj) => {
+      if (!obj || typeof obj !== 'object') return obj;
+      const out = Array.isArray(obj) ? [] : {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (v === undefined) {
+          out[k] = deleteSentinel;
+        } else if (v && typeof v === 'object' && !(v instanceof Date)) {
+          out[k] = sanitize(v);
+        } else {
+          out[k] = v;
+        }
+      }
+      return out;
+    };
+    cleanUpdate = sanitize(cleanUpdate);
     await docRef.update(cleanUpdate);
     const updatedDoc = await docRef.get();
     const result = { ...updatedDoc.data(), _id: updatedDoc.id, id: updatedDoc.id };

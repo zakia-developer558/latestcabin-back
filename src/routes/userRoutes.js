@@ -1,21 +1,21 @@
 import express from 'express';
 import {
   register,
-  // verifyOTP, // OTP VERIFICATION DISABLED - Commented out for development
+  verifyOTP,
   login,
   forgotPassword,
   resetPassword,
-  // resendOTP // OTP RESEND DISABLED - Commented out for development
+  resendOTP
 } from '../controllers/userController.js';
 
 
 const router = express.Router();
 
 router.post('/register',  register);
-// router.post('/verify-otp',  verifyOTP); // OTP VERIFICATION DISABLED - Commented out for development
+router.post('/verify-otp',  verifyOTP);
 router.post('/login',  login);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
-// router.post('/resend-otp', resendOTP); // OTP RESEND DISABLED - Commented out for development
+router.post('/resend-otp', resendOTP);
 
 export default router;
