@@ -74,36 +74,25 @@ app.use(express.json());
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://cabin-front-one.vercel.app"
+  "https://cabin-front-one.vercel.app" // your deployed frontend
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow non-browser tools like Postman
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
     } else {
-      console.warn("🚫 Blocked by CORS:", origin);
-      return callback(null, false); // reject request
+      callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: ["GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
 
+// Handle preflight requests globally
 app.options("*", cors({
   origin: allowedOrigins,
-  methods: ["GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
-
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin);
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
 
 
 // use routes
