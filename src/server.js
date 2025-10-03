@@ -79,23 +79,24 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like Postman or curl)
-    if (!origin) return callback(null, true);
-
+    if (!origin) return callback(null, true); // allow non-browser tools like Postman
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
-      return callback(new Error("❌ Not allowed by CORS"));
+      console.warn("🚫 Blocked by CORS:", origin);
+      return callback(null, false); // reject request
     }
   },
+  methods: ["GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
 
-// Handle preflight for all routes
 app.options("*", cors({
   origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
+
 
 
 // use routes
