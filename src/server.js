@@ -72,10 +72,31 @@ const app = express();
 // middlewares
 app.use(express.json());
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://cabin-front-one.vercel.app"
+];
+
 app.use(cors({
-  origin: "http://localhost:3000", // frontend URL
-  credentials: true,               // if using cookies/auth headers
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like Postman or curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("❌ Not allowed by CORS"));
+    }
+  },
+  credentials: true,
 }));
+
+// Handle preflight for all routes
+app.options("*", cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
 
 // use routes
 app.use("/v1", routes);
