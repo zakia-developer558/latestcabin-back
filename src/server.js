@@ -72,27 +72,12 @@ const app = express();
 // middlewares
 app.use(express.json());
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://cabin-front-one.vercel.app" // your deployed frontend
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-}));
-
-// Handle preflight requests globally
-app.options("*", cors({
-  origin: allowedOrigins,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "https://cabin-front-one.vercel.app"],
+    credentials: true,
+  })
+);
 
 
 // use routes
