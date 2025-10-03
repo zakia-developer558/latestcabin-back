@@ -11,7 +11,11 @@ export const createCabinValidation = (data) => {
     contact_person_name: Joi.string().trim().allow('', null),
     image: Joi.string().uri().allow('', null),
     color: Joi.string().pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).default('#3B82F6'),
-    halfdayAvailability: Joi.boolean().default(false)
+    halfdayAvailability: Joi.boolean().default(false),
+    affiliations: Joi.array()
+      .items(Joi.string().trim().min(1).max(100))
+      .max(50)
+      .default([])
   });
 
   return schema.validate(data, { abortEarly: false });
@@ -28,7 +32,11 @@ export const updateCabinValidation = (data) => {
     contact_person_name: Joi.string().trim().allow('', null).optional(),
     image: Joi.string().uri().allow('', null).optional(),
     color: Joi.string().pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).optional(),
-    halfdayAvailability: Joi.boolean().optional()
+    halfdayAvailability: Joi.boolean().optional(),
+    affiliations: Joi.array()
+      .items(Joi.string().trim().min(1).max(100))
+      .max(50)
+      .optional()
   });
 
   return schema.validate(data, { abortEarly: false });

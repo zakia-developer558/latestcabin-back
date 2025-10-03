@@ -47,7 +47,8 @@ export const createCabin = async (payload, ownerUser) => {
       contact_person_name: payload.contact_person_name,
       image: payload.image,
       color: payload.color,
-      halfdayAvailability: payload.halfdayAvailability ?? false
+      halfdayAvailability: payload.halfdayAvailability ?? false,
+      affiliations: payload.affiliations || []
     });
     
     // Send cabin creation email to owner (non-blocking)
@@ -115,6 +116,7 @@ export const updateCabin = async (slug, updates, ownerUser) => {
     image: updates.image ?? cabin.image,
     color: updates.color ?? cabin.color,
     halfdayAvailability: typeof updates.halfdayAvailability === 'boolean' ? updates.halfdayAvailability : cabin.halfdayAvailability,
+    affiliations: updates.affiliations ?? cabin.affiliations,
     slug: cabin.slug,
     name: cabin.name
   });
