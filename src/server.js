@@ -70,15 +70,18 @@ const db = admin.firestore();
 const app = express();
 
 // middlewares
+// middlewares
 app.use(express.json());
 
+// Allow requests from all origins (even with credentials)
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://cabin-front-one.vercel.app"],
+    origin: (origin, callback) => {
+      callback(null, origin || "*");
+    },
     credentials: true,
   })
 );
-
 
 // use routes
 app.use("/v1", routes);
