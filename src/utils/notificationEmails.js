@@ -3,7 +3,8 @@ import { sendEmail } from './sendgridMailer.js';
 const formatDate = (d) => {
   try {
     const date = new Date(d);
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    // Norwegian locale formatting
+    return date.toLocaleDateString('nb-NO', { year: 'numeric', month: 'long', day: '2-digit' });
   } catch {
     return String(d);
   }
