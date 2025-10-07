@@ -16,7 +16,6 @@ import {
   initializeDefaultLegends 
 } from '../services/legendService.js';
 import { getCabinBySlug } from '../services/cabinService.js';
-import { sendLegendCreatedEmail } from '../utils/notificationEmails.js';
 
 // GET - Fetch legend by ID (public endpoint - no authentication required)
 export const getPublicLegendById = async (req, res) => {
@@ -173,16 +172,7 @@ export const createNewLegend = async (req, res) => {
   try {
     const userId = req.user?.userId; // Get user ID from authenticated request
     const userCompanySlug = req.user?.companySlug; // Get company slug from authenticated request
-    const legend = await createLegend(req.body, userId, userCompanySlug);
-    
-    // Send legend creation notification (non-blocking)
-    try {
-      if (req.user?.email) {
-        await sendLegendCreatedEmail(req.user.email, req.user.firstName || '', legend.name);
-      }
-    } catch (e) {
-      console.warn('Legend created email failed:', e?.message || e);
-    }
+  const legend = await createLegend(req.body, userId, userCompanySlug);
     
     return res.status(201).json({ 
       success: true, 

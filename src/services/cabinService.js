@@ -8,7 +8,8 @@ const generateSlug = (name) => {
     .toString()
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
+    .normalize('NFKC')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
 };
@@ -48,6 +49,10 @@ export const createCabin = async (payload, ownerUser) => {
       image: payload.image,
       color: payload.color,
       halfdayAvailability: payload.halfdayAvailability ?? false,
+      firstHalfStartTime: payload.firstHalfStartTime || null,
+      firstHalfEndTime: payload.firstHalfEndTime || null,
+      secondHalfStartTime: payload.secondHalfStartTime || null,
+      secondHalfEndTime: payload.secondHalfEndTime || null,
       affiliations: payload.affiliations || []
     });
     
@@ -116,6 +121,10 @@ export const updateCabin = async (slug, updates, ownerUser) => {
     image: updates.image ?? cabin.image,
     color: updates.color ?? cabin.color,
     halfdayAvailability: typeof updates.halfdayAvailability === 'boolean' ? updates.halfdayAvailability : cabin.halfdayAvailability,
+    firstHalfStartTime: updates.firstHalfStartTime ?? cabin.firstHalfStartTime,
+    firstHalfEndTime: updates.firstHalfEndTime ?? cabin.firstHalfEndTime,
+    secondHalfStartTime: updates.secondHalfStartTime ?? cabin.secondHalfStartTime,
+    secondHalfEndTime: updates.secondHalfEndTime ?? cabin.secondHalfEndTime,
     affiliations: updates.affiliations ?? cabin.affiliations,
     slug: cabin.slug,
     name: cabin.name

@@ -4,7 +4,7 @@ import { sendPasswordResetEmail } from '../utils/emailUtils.js';
 import { sendWelcomeEmail, sendOTPEmail } from '../utils/notificationEmails.js';
 
 export const registerUser = async (userData) => {
-  const { email, firstName, lastName, password, companyName, role = 'user' } = userData;
+  const { email, firstName, lastName, password, companyName, companyColor, role = 'user' } = userData;
   
   // Check if user already exists
   const existingUser = await User.findOne({ email });
@@ -19,6 +19,7 @@ export const registerUser = async (userData) => {
     email,
     password,
     companyName,
+    companyColor,
     role,
     isVerified: false // Require OTP verification
   });
@@ -40,10 +41,11 @@ export const registerUser = async (userData) => {
         lastName: user.lastName,
         email: user.email,
         slug: user.slug,
-        companyName: user.companyName,
-        companySlug: user.companySlug,
-        role: user.role,
-        isVerified: false
+      companyName: user.companyName,
+      companySlug: user.companySlug,
+      companyColor: user.companyColor,
+      role: user.role,
+      isVerified: false
       }
     };
 };
@@ -87,6 +89,7 @@ export const verifyOTP = async (email, otp) => {
       slug: user.slug,
       companyName: user.companyName,
       companySlug: user.companySlug,
+      companyColor: user.companyColor,
       role: user.role,
       isVerified: true
     }
@@ -126,6 +129,7 @@ export const loginUser = async (email, password) => {
       slug: user.slug,
       companyName: user.companyName,
       companySlug: user.companySlug,
+      companyColor: user.companyColor,
       role: user.role
     }
   };

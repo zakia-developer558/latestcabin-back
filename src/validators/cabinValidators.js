@@ -12,6 +12,10 @@ export const createCabinValidation = (data) => {
     image: Joi.string().uri().allow('', null),
     color: Joi.string().pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).default('#3B82F6'),
     halfdayAvailability: Joi.boolean().default(false),
+    firstHalfStartTime: Joi.string().pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).allow('', null).optional(),
+    firstHalfEndTime: Joi.string().pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).allow('', null).optional(),
+    secondHalfStartTime: Joi.string().pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).allow('', null).optional(),
+    secondHalfEndTime: Joi.string().pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).allow('', null).optional(),
     affiliations: Joi.array()
       .items(Joi.string().trim().min(1).max(100))
       .max(50)
@@ -33,6 +37,10 @@ export const updateCabinValidation = (data) => {
     image: Joi.string().uri().allow('', null).optional(),
     color: Joi.string().pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).optional(),
     halfdayAvailability: Joi.boolean().optional(),
+    firstHalfStartTime: Joi.string().pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).allow('', null).optional(),
+    firstHalfEndTime: Joi.string().pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).allow('', null).optional(),
+    secondHalfStartTime: Joi.string().pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).allow('', null).optional(),
+    secondHalfEndTime: Joi.string().pattern(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).allow('', null).optional(),
     affiliations: Joi.array()
       .items(Joi.string().trim().min(1).max(100))
       .max(50)

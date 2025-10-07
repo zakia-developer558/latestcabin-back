@@ -55,6 +55,14 @@ export const registerValidation = (data) => {
         'string.max': 'Firmanavn kan ikke overstige 100 tegn'
       }),
     
+    companyColor: Joi.string()
+      .pattern(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)
+      .optional()
+      .allow(null, '')
+      .messages({
+        'string.pattern.base': 'Firmafargen må være en gyldig hex-fargekode (f.eks. #3B82F6)'
+      }),
+    
     role: Joi.string()
       .valid('user', 'owner', 'admin')
       .default('user')

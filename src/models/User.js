@@ -41,6 +41,7 @@ class User extends FirebaseModel {
       slug: uniqueSlug,
       companyName: userData.companyName ? userData.companyName.trim() : null,
       companySlug: uniqueCompanySlug,
+      companyColor: userData.companyColor || '#3B82F6',
       role: userData.role || 'user',
       isVerified: userData.isVerified || false,
       otp: userData.otp || null,
