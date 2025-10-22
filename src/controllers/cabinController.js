@@ -19,11 +19,13 @@ export const create = async (req, res) => {
     const cabin = await createCabin(value, req.user);
     return res.status(201).json({ success: true, data: cabin });
   } catch (err) {
-    if (err.code === 11000) {
-      // duplicate key (name or slug)
-      return res.status(409).json({ success: false, message: 'Cabin with this name already exists' });
-    }
-    return res.status(400).json({ success: false, message: err.message });
+    // Map known errors to appropriate HTTP status codes
+    if (err.status === 400) return res.status(400).json({ success: false, message: err.message });
+    if (err.status === 403) return res.status(403).json({ success: false, message: 'Forbudt' });
+    if (err.message === 'Owner not found') return res.status(404).json({ success: false, message: 'Eier ikke funnet' });
+    if (err.code === 11000) return res.status(409).json({ success: false, message: 'Hytte med dette navnet finnes allerede' });
+    // Default to 500 for unexpected server-side errors
+    return res.status(500).json({ success: false, message: 'Intern serverfeil' });
   }
 };
 

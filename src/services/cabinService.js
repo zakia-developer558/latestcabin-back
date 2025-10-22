@@ -23,6 +23,12 @@ export const createCabin = async (payload, ownerUser) => {
     }
 
     const baseSlug = generateSlug(payload.name);
+    // Prevent creating cabins with unusable slug (e.g., name with only punctuation)
+    if (!baseSlug || baseSlug.length === 0) {
+      const err = new Error('Ugyldig hyttenavn: må inneholde bokstaver eller tall');
+      err.status = 400;
+      throw err;
+    }
     let slug = baseSlug;
     let suffix = 1;
 
@@ -60,7 +66,7 @@ export const createCabin = async (payload, ownerUser) => {
     try {
       await sendCabinCreatedEmail(owner.email, owner.firstName, cabin);
     } catch (e) {
-      console.warn('Cabin created email failed:', e?.message || e);
+      console.warn('E-postoppretting av hytta mislyktes:', e?.message || e);
     }
 
     return cabin;
@@ -85,9 +91,18 @@ export const listCabins = async ({ city, halfdayAvailability, ownerId, limit = 2
 };
 
 export const getCabinBySlug = async (slug) => {
-  const cabin = await Cabin.findOne({ slug });
-  if (!cabin) throw new Error('Cabin not found');
-  return cabin;
+  // Try exact match first
+  let cabin = await Cabin.findOne({ slug });
+  if (cabin) return cabin;
+
+  // Fallback: normalize incoming slug (strip unsafe characters, lowercase)
+  const normalized = generateSlug(slug);
+  if (normalized !== slug) {
+    cabin = await Cabin.findOne({ slug: normalized });
+    if (cabin) return cabin;
+  }
+
+  throw new Error('Cabin not found');
 };
 
 export const updateCabin = async (slug, updates, ownerUser) => {
