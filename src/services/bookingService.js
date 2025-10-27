@@ -4,6 +4,30 @@ import Unavailability from '../models/Unavailability.js';
 import User from '../models/User.js';
 import { sendBookingCreatedOwnerEmail, sendBookingCreatedGuestEmail, sendBookingStatusEmail } from '../utils/notificationEmails.js';
 
+// Normalize slug same as cabinService.getCabinBySlug
+const normalizeSlug = (name) => {
+  return name
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFKC')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+};
+
+// Find cabin by slug with normalization fallback
+const findCabinBySlugFallback = async (slug) => {
+  let cabin = await Cabin.findOne({ slug });
+  if (cabin) return cabin;
+  const normalized = normalizeSlug(slug);
+  if (normalized !== slug) {
+    cabin = await Cabin.findOne({ slug: normalized });
+    if (cabin) return cabin;
+  }
+  throw new Error('Cabin not found');
+};
+
 const rangesOverlap = (startA, endA, startB, endB) => {
   return startA < endB && startB < endA;
 };
@@ -17,7 +41,7 @@ const toHalfDayRangeUTC = (startDate, endDate, startHalf = 'AM', endHalf = 'PM')
 };
 
 export const checkAvailability = async (slug, startDate, endDate, startHalf = 'AM', endHalf = 'PM') => {
-  const cabin = await Cabin.findOne({ slug });
+  const cabin = await findCabinBySlugFallback(slug);
   if (!cabin) throw new Error('Cabin not found');
 
   let start, end;
@@ -72,7 +96,7 @@ export const checkAvailability = async (slug, startDate, endDate, startHalf = 'A
 
 // New function specifically for single-day availability checks
 export const checkSingleDayAvailability = async (slug, start, end) => {
-  const cabin = await Cabin.findOne({ slug });
+  const cabin = await findCabinBySlugFallback(slug);
   if (!cabin) throw new Error('Cabin not found');
 
   console.log('checkSingleDayAvailability debug:', { start, end, startType: typeof start, endType: typeof end, startISO: start.toISOString(), endISO: end.toISOString() });
@@ -92,7 +116,7 @@ export const checkSingleDayAvailability = async (slug, start, end) => {
 };
 
 export const createBooking = async (slug, payload, user) => {
-  const cabin = await Cabin.findOne({ slug });
+  const cabin = await findCabinBySlugFallback(slug);
   if (!cabin) throw new Error('Cabin not found');
 
   const now = new Date();
@@ -532,7 +556,7 @@ export const getCalendarData = async (slug, year, month) => {
 };
 
 export const blockDates = async (slug, payload, ownerUser) => {
-  const cabin = await Cabin.findOne({ slug });
+  const cabin = await findCabinBySlugFallback(slug);
   if (!cabin) throw new Error('Cabin not found');
   if (String(cabin.owner) !== String(ownerUser.userId)) {
     const err = new Error('Forbidden');
@@ -683,14 +707,16 @@ export const blockDates = async (slug, payload, ownerUser) => {
     for (const range of dateRanges) {
       const { start, end } = range;
       
-      // Check for overlapping bookings
-      const overlappingBooking = await Booking.findOne({
+      // Check for overlapping bookings without multi-field inequalities (avoid Firestore composite index)
+      const existingBookings = await Booking.find({
         cabin: cabin._id,
-        status: { $nin: ['cancelled', 'rejected'] },
-        $or: [ { startDate: { $lt: end }, endDate: { $gt: start } } ]
+        status: { $nin: ['cancelled', 'rejected'] }
       });
-      
-      if (overlappingBooking) {
+      const hasOverlap = existingBookings.some(b =>
+        rangesOverlap(start, end, b.startDateTime || b.startDate, b.endDateTime || b.endDate)
+      );
+
+      if (hasOverlap) {
         const err = new Error(`Cannot block ${start.toISOString().slice(0,10)} - overlapping existing bookings`);
         err.status = 409;
         throw err;
@@ -868,7 +894,7 @@ export const getUserBookings = async (userId, { limit = 20, page = 1, status }) 
 };
 
 export const getCabinBookings = async (slug, ownerUser, { limit = 20, page = 1, status }) => {
-  const cabin = await Cabin.findOne({ slug });
+  const cabin = await findCabinBySlugFallback(slug);
   if (!cabin) throw new Error('Cabin not found');
   if (String(cabin.owner) !== String(ownerUser.userId)) {
     const err = new Error('Forbidden');
@@ -971,7 +997,7 @@ export const getPendingBookings = async (user, { limit = 20, page = 1, cabinSlug
     filter.cabin = { $in: cabinIds };
   } else if (cabinSlug) {
     // Admin with specific cabin filter
-    const cabin = await Cabin.findOne({ slug: cabinSlug });
+    const cabin = await findCabinBySlugFallback(cabinSlug);
     if (!cabin) throw new Error('Cabin not found');
     filter.cabin = cabin._id;
   }
@@ -997,7 +1023,7 @@ export const getPendingBookings = async (user, { limit = 20, page = 1, cabinSlug
 };
 
 export const getBlocks = async (slug, ownerUser) => {
-  const cabin = await Cabin.findOne({ slug });
+  const cabin = await findCabinBySlugFallback(slug);
   if (!cabin) throw new Error('Cabin not found');
   if (String(cabin.owner) !== String(ownerUser.userId)) {
     const err = new Error('Forbidden');
@@ -1010,7 +1036,7 @@ export const getBlocks = async (slug, ownerUser) => {
 };
 
 export const removeBlock = async (slug, blockId, ownerUser) => {
-  const cabin = await Cabin.findOne({ slug });
+  const cabin = await findCabinBySlugFallback(slug);
   if (!cabin) {
     throw new Error('Cabin not found');
   }
@@ -1031,7 +1057,7 @@ export const removeBlock = async (slug, blockId, ownerUser) => {
 };
 
 export const updateBlock = async (slug, blockId, updates, ownerUser) => {
-  const cabin = await Cabin.findOne({ slug });
+  const cabin = await findCabinBySlugFallback(slug);
   if (!cabin) {
     throw new Error('Cabin not found');
   }
