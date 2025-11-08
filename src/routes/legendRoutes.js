@@ -11,13 +11,15 @@ import {
   getPublicLegends,
   getPublicLegendById,
   getCabinLegends,
-  getCompanySpecificLegends
+  getCompanySpecificLegends,
+  applyLegend
 } from '../controllers/legendController.js';
 import {
   createLegendValidation,
   updateLegendValidation,
   legendIdValidation,
-  legendQueryValidation
+  legendQueryValidation,
+  applyLegendValidation
 } from '../validators/legendValidators.js';
 
 const router = express.Router();
@@ -54,5 +56,8 @@ router.patch('/:id/toggle', authenticate, authorize('owner'), legendIdValidation
 
 // POST /legends/init-defaults - Initialize default legends (admin only)
 router.post('/init-defaults', authenticate, authorize('owner'), initDefaults);
+
+// POST /legends/apply/:slug - Apply legend to dates for a cabin (owner only)
+router.post('/apply/:slug', authenticate, authorize('owner'), applyLegendValidation, applyLegend);
 
 export default router;

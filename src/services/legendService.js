@@ -248,6 +248,7 @@ export const initializeDefaultLegends = async () => {
         bgColor: 'bg-red-100',
         borderColor: 'border-red-200',
         textColor: 'text-red-800',
+        isBookable: false,
         isActive: true,
         isDefault: true,
         description: 'Confirmed bookings'
@@ -258,6 +259,7 @@ export const initializeDefaultLegends = async () => {
         bgColor: 'bg-amber-100',
         borderColor: 'border-amber-200',
         textColor: 'text-amber-800',
+        isBookable: false,
         isActive: true,
         isDefault: true,
         description: 'Maintenance periods'
@@ -268,6 +270,7 @@ export const initializeDefaultLegends = async () => {
         bgColor: 'bg-gray-100',
         borderColor: 'border-gray-200',
         textColor: 'text-gray-800',
+        isBookable: false,
         isActive: true,
         isDefault: true,
         description: 'Unavailable periods'

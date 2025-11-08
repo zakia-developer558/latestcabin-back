@@ -1,7 +1,8 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/authMiddleware.js';
 import { create, list, getBySlug, update, remove, listMyCabins, getCabinsByOwnerSlug, getCabinsByCompanySlug } from '../controllers/cabinController.js';
-import { assertCabinOwner } from '../middleware/ownershipMiddleware.js';
+import { assertCabinOwner, assertCabinOwnerById } from '../middleware/ownershipMiddleware.js';
+import { upsertCabinNotes } from '../controllers/noteController.js';
 import { availability, book, bookMulti, bookedDates, calendarData, block, cancel, ownerCancel, getBookingDetails, getMyBookings, updateBooking, getOwnerAllBookings, getCabinAllBookings, updateBookingStatusController, getCabinBlocks, updateBlockController, removeBlockController, approveBookingController, rejectBookingController, getPendingBookingsController } from '../controllers/bookingController.js';
 
 const router = express.Router();
@@ -17,6 +18,8 @@ router.post('/:slug/book-multi', bookMulti);
 router.get('/:slug/booked-dates', bookedDates);
 router.get('/:slug/calendar', calendarData);
 router.post('/:slug/block', authenticate, authorize('owner'), assertCabinOwner, block);
+// Notes per date (owner-only, ID-based for stability)
+router.post('/:cabinId/notes', authenticate, authorize('owner'), assertCabinOwnerById, upsertCabinNotes);
 router.put('/update/:slug', authenticate, authorize('owner'), assertCabinOwner, update);
 router.delete('/delete/:slug', authenticate, authorize('owner'), assertCabinOwner, remove);
 router.delete('/bookings/:bookingId/cancel', cancel);

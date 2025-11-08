@@ -16,6 +16,7 @@ import {
   initializeDefaultLegends 
 } from '../services/legendService.js';
 import { getCabinBySlug } from '../services/cabinService.js';
+import { applyLegendToDates } from '../services/legendAssignmentService.js';
 
 // GET - Fetch legend by ID (public endpoint - no authentication required)
 export const getPublicLegendById = async (req, res) => {
@@ -343,5 +344,20 @@ export const getCabinLegends = async (req, res) => {
       success: false, 
       message: err.message 
     });
+  }
+};
+
+// POST - Apply a legend to specific dates for a cabin (owner only)
+export const applyLegend = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'owner') {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+    const { slug } = req.params;
+    const result = await applyLegendToDates(slug, req.body, req.user);
+    return res.status(200).json(result);
+  } catch (err) {
+    const status = err.status || 400;
+    return res.status(status).json({ success: false, message: err.message });
   }
 };

@@ -329,7 +329,8 @@ export const approveBookingController = async (req, res) => {
     }
 
     const { bookingId } = req.params;
-    const result = await approveBooking(bookingId, req.user);
+    const { sendEmail } = req.body || {};
+    const result = await approveBooking(bookingId, req.user, { sendEmail });
     
     return res.status(200).json({ success: true, ...result });
   } catch (err) {
@@ -347,7 +348,8 @@ export const rejectBookingController = async (req, res) => {
     }
 
     const { bookingId } = req.params;
-    const result = await rejectBooking(bookingId, req.user);
+    const { sendEmail } = req.body || {};
+    const result = await rejectBooking(bookingId, req.user, { sendEmail });
     
     return res.status(200).json({ success: true, ...result });
   } catch (err) {

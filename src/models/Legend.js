@@ -33,6 +33,7 @@ class Legend extends FirebaseModel {
       bgColor: legendData.bgColor || 'bg-gray-100',
       borderColor: legendData.borderColor || 'border-gray-200',
       textColor: legendData.textColor || 'text-gray-800',
+      isBookable: legendData.isBookable !== undefined ? !!legendData.isBookable : true,
       isActive: legendData.isActive !== undefined ? legendData.isActive : true,
       isDefault: legendData.isDefault || false,
       description: legendData.description || '',

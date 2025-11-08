@@ -1,7 +1,9 @@
 import Cabin from '../models/Cabin.js';
 import Booking from '../models/Booking.js';
 import Unavailability from '../models/Unavailability.js';
+import { getNotesForMonth, getAllNotesForCabin } from './notesService.js';
 import User from '../models/User.js';
+import Legend from '../models/Legend.js';
 import { sendBookingCreatedOwnerEmail, sendBookingCreatedGuestEmail, sendBookingStatusEmail } from '../utils/notificationEmails.js';
 
 // Normalize slug same as cabinService.getCabinBySlug
@@ -365,9 +367,35 @@ export const getBookedDates = async (slug) => {
     console.log(`📝 getBookedDates Booking ${index + 1}: ${booking.startDate} to ${booking.endDate} by ${booking.guestName}`);
   });
   
+  const notes = await getAllNotesForCabin(cabin._id);
+  const legendIds = Array.from(new Set(notes.map(n => n.legendId).filter(Boolean)));
+  let legendMap = new Map();
+  if (legendIds.length > 0) {
+    const legends = await Legend.find({ _id: { $in: legendIds } });
+    legendMap = new Map(legends.map(l => [String(l._id), l]));
+  }
+  const legendDates = notes
+    .filter(n => n.legendId)
+    .map(n => {
+      const legend = legendMap.get(String(n.legendId));
+      return {
+        date: n.date,
+        legend: legend ? {
+          id: String(legend._id),
+          name: legend.name,
+          color: legend.color,
+          bgColor: legend.bgColor,
+          borderColor: legend.borderColor,
+          textColor: legend.textColor,
+          isBookable: legend.isBookable
+        } : { id: String(n.legendId) }
+      };
+    });
   return {
     bookings: bookings.map(b => ({ startDate: b.startDate, endDate: b.endDate, status: b.status, orderNo: b.orderNo, guestName: b.guestName })),
-    blocks: blocks.map(b => ({ startDate: b.startDate, endDate: b.endDate, reason: b.reason }))
+    blocks: blocks.map(b => ({ startDate: b.startDate, endDate: b.endDate, reason: b.reason })),
+    notes,
+    legendDates
   };
 };
 
@@ -524,10 +552,54 @@ export const getCalendarData = async (slug, year, month) => {
     });
   });
 
+  // Ensure legend-only days are included for coloring
+  const notesMap = await getNotesForMonth(cabin._id, year, month);
+  Object.keys(notesMap).forEach(dateKey => {
+    if (!calendarData.has(dateKey)) {
+      calendarData.set(dateKey, { date: dateKey, status: 'available', items: [] });
+    }
+  });
+
   // Convert to array and sort by date
-  const result = Array.from(calendarData.values()).sort((a, b) => 
-    new Date(a.date) - new Date(b.date)
-  );
+  const result = Array.from(calendarData.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Fetch legends referenced in notes for this month
+  const legendIds = Array.from(new Set(Object.values(notesMap).map(v => v.legendId).filter(Boolean)));
+  let legendMap = new Map();
+  if (legendIds.length > 0) {
+    const legends = await Legend.find({ _id: { $in: legendIds } });
+    legendMap = new Map(legends.map(l => [String(l._id), l]));
+  }
+
+  // Attach note and legend details, and compute bookable flag
+  result.forEach(day => {
+    const entry = notesMap[day.date];
+    if (entry && typeof entry.note !== 'undefined') {
+      day.note = entry.note;
+    }
+    if (entry && entry.legendId) {
+      const legend = legendMap.get(String(entry.legendId));
+      if (legend) {
+        day.legend = {
+          id: String(legend._id),
+          name: legend.name,
+          color: legend.color,
+          bgColor: legend.bgColor,
+          borderColor: legend.borderColor,
+          textColor: legend.textColor,
+          isBookable: legend.isBookable
+        };
+      } else {
+        day.legend = { id: String(entry.legendId) };
+      }
+    }
+    // Default bookable logic: available unless booked or blocked
+    let bookable = day.status !== 'booked' && day.status !== 'maintenance' && day.status !== 'unavailable';
+    if (day.legend && day.legend.isBookable === false) {
+      bookable = false;
+    }
+    day.bookable = bookable;
+  });
 
   // Calculate statistics
   const totalDays = new Date(year, month, 0).getDate();
@@ -1095,7 +1167,8 @@ export const updateBlock = async (slug, blockId, updates, ownerUser) => {
   return updatedBlock;
 };
 
-export const approveBooking = async (bookingId, user) => {
+export const approveBooking = async (bookingId, user, options = {}) => {
+  const { sendEmail = true } = options;
   const booking = await Booking.findById(bookingId);
   if (!booking) {
     throw new Error('Booking not found');
@@ -1131,7 +1204,7 @@ export const approveBooking = async (bookingId, user) => {
     const cabinFull = await Cabin.findById(bookingWithCabin.cabin._id || bookingWithCabin.cabin);
     const toEmail = bookingWithCabin.guestEmail || (await User.findById(bookingWithCabin.user))?.email;
     const guestName = bookingWithCabin.guestName || (await User.findById(bookingWithCabin.user))?.firstName;
-    if (toEmail) {
+    if (toEmail && sendEmail) {
       await sendBookingStatusEmail(toEmail, guestName, cabinFull?.name || 'Hytta', bookingWithCabin.startDate, bookingWithCabin.endDate, 'approved');
     }
   } catch (e) {
@@ -1141,7 +1214,8 @@ export const approveBooking = async (bookingId, user) => {
   return { message: 'Booking approved successfully', booking: updatedBooking };
 };
 
-export const rejectBooking = async (bookingId, user) => {
+export const rejectBooking = async (bookingId, user, options = {}) => {
+  const { sendEmail = true } = options;
   const booking = await Booking.findById(bookingId);
   if (!booking) {
     throw new Error('Booking not found');
@@ -1177,7 +1251,7 @@ export const rejectBooking = async (bookingId, user) => {
     const cabinFull = await Cabin.findById(bookingWithCabin.cabin._id || bookingWithCabin.cabin);
     const toEmail = bookingWithCabin.guestEmail || (await User.findById(bookingWithCabin.user))?.email;
     const guestName = bookingWithCabin.guestName || (await User.findById(bookingWithCabin.user))?.firstName;
-    if (toEmail) {
+    if (toEmail && sendEmail) {
       await sendBookingStatusEmail(toEmail, guestName, cabinFull?.name || 'Hytta', bookingWithCabin.startDate, bookingWithCabin.endDate, 'rejected');
     }
   } catch (e) {

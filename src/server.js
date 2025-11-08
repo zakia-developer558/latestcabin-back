@@ -77,7 +77,15 @@ app.use(express.json());
 app.use(
   cors({
     origin: (origin, callback) => {
-      callback(null, origin || "*");
+      const allowedOrigins = [
+        "https://bookin-property.vercel.app",
+        "http://localhost:3000",
+      ];
+      if (allowedOrigins.includes(origin) || !origin) {
+        callback(null, origin);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
     },
     credentials: true,
   })

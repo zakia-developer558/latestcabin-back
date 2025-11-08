@@ -21,8 +21,9 @@ class Booking extends FirebaseModel {
       throw new Error('endDate must be after or equal to startDate');
     }
 
-    // Generate order number
-    const orderSequence = await Counter.getNextSequence('booking');
+    // Generate per-cabin order number (starts at 1 and increments per cabin)
+    const cabinCounterKey = `booking_${String(bookingData.cabin)}`;
+    const orderSequence = await Counter.getNextSequence(cabinCounterKey);
     const orderNo = orderSequence;
 
     // Set default values and ensure proper formatting

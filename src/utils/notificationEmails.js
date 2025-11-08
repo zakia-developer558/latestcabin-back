@@ -105,10 +105,18 @@ export const sendBookingStatusEmail = async (email, guestName, cabinName, startD
   else if (status === 'cancelled') subject = `Bestilling kansellert for ${cabinName}`;
   else subject = `Oppdatering for bestilling (${cabinName})`;
 
+  // Map status to Norwegian text for email body
+  const statusText =
+    status === 'approved' ? 'godkjent'
+    : status === 'rejected' ? 'avslått'
+    : status === 'cancelled' ? 'kansellert'
+    : status === 'pending' ? 'venter på godkjenning'
+    : String(status);
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Hei ${guestName || ''}</h2>
-      <p>Status for bestillingen din for <strong>${cabinName}</strong> er oppdatert til <strong>${status}</strong>.</p>
+      <p>Status for bestillingen din for <strong>${cabinName}</strong> er oppdatert til <strong>${statusText}</strong>.</p>
       <p>Datoer: <strong>${range}</strong></p>
     </div>
   `;

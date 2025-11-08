@@ -44,6 +44,9 @@ export const createLegendValidation = (req, res, next) => {
         'string.pattern.base': 'Text color must be a valid Tailwind CSS class (e.g., text-red-800 or text-red-800 dark:text-red-200)'
       }),
     
+    isBookable: Joi.boolean()
+      .default(true),
+    
     isActive: Joi.boolean()
       .default(true),
     
@@ -120,6 +123,8 @@ export const updateLegendValidation = (req, res, next) => {
       .messages({
         'string.pattern.base': 'Text color must be a valid Tailwind CSS class (e.g., text-red-800 or text-red-800 dark:text-red-200)'
       }),
+    
+    isBookable: Joi.boolean(),
     
     isActive: Joi.boolean(),
     
@@ -228,5 +233,48 @@ export const legendQueryValidation = (req, res, next) => {
   }
   
   // Don't overwrite req.query, just validate it
+  next();
+};
+
+// Validation for applying a legend to dates
+export const applyLegendValidation = (req, res, next) => {
+  const halfEnum = Joi.string().valid('AM', 'PM', 'FULL');
+
+  const schema = Joi.object({
+    legendId: Joi.string().trim().required().messages({
+      'any.required': 'legendId is required'
+    }),
+    // One of: dates[], single date, or startDate+endDate
+    dates: Joi.array().items(
+      Joi.alternatives().try(
+        Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/),
+        Joi.object({
+          date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+          half: halfEnum.default('FULL')
+        })
+      )
+    ),
+    date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/),
+    half: halfEnum.default('FULL'),
+    startDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/),
+    endDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/),
+    startHalf: halfEnum.default('AM'),
+    endHalf: halfEnum.default('PM')
+  }).custom((val, helpers) => {
+    if (!val.dates && !val.date && !(val.startDate && val.endDate)) {
+      return helpers.error('any.custom', { message: 'Provide dates[], date, or startDate+endDate' });
+    }
+    return val;
+  }, 'dates union validation');
+
+  const { error, value } = schema.validate(req.body, { abortEarly: false });
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error',
+      errors: error.details.map(d => d.message)
+    });
+  }
+  req.body = value;
   next();
 };
