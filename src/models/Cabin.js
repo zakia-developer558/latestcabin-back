@@ -53,6 +53,8 @@ class Cabin extends FirebaseModel {
       image: cabinData.image || null,
       color: cabinData.color || '#3B82F6',
       halfdayAvailability: cabinData.halfdayAvailability || false,
+      fullDayStartTime: cabinData.fullDayStartTime || null,
+      fullDayEndTime: cabinData.fullDayEndTime || null,
       firstHalfStartTime: cabinData.firstHalfStartTime || null,
       firstHalfEndTime: cabinData.firstHalfEndTime || null,
       secondHalfStartTime: cabinData.secondHalfStartTime || null,

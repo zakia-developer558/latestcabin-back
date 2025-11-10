@@ -53,25 +53,37 @@ export const checkAvailability = async (slug, startDate, endDate, startHalf = 'A
     // Called with computed Date objects from single-day booking
     start = startDate;
     end = endDate;
-  } else if (startDate && endDate && startDate === endDate) {
-    // Single day check with same start/end date
-    const date = new Date(startDate);
-    if (startHalf === 'AM' && endHalf === 'AM') {
-      start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
-      end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 11, 59, 59, 999));
-    } else if (startHalf === 'PM' && endHalf === 'PM') {
-      start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12, 0, 0, 0));
-      end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
+    } else if (startDate && endDate && startDate === endDate) {
+      // Single day check with same start/end date
+      const date = new Date(startDate);
+      if (startHalf === 'AM' && endHalf === 'AM') {
+        start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
+        end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 11, 59, 59, 999));
+      } else if (startHalf === 'PM' && endHalf === 'PM') {
+        start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12, 0, 0, 0));
+        end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
+      } else {
+        // FULL day or mixed: use cabin-defined times if available for full-day cabins
+        const [fh, fm] = (cabin.fullDayStartTime || '00:00').split(':').map((v) => parseInt(v, 10));
+        const [th, tm] = (cabin.fullDayEndTime || '23:59').split(':').map((v) => parseInt(v, 10));
+        start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), fh || 0, fm || 0, 0, 0));
+        end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), th || 23, tm || 59, 59, 999));
+      }
     } else {
-      // FULL day or mixed
-      start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
-      end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
-    }
-  } else {
-    // Date range check
-    const result = toHalfDayRangeUTC(startDate, endDate, startHalf, endHalf);
-    start = result.start;
-    end = result.end;
+      // Date range check
+      const result = toHalfDayRangeUTC(startDate, endDate, startHalf, endHalf);
+      start = result.start;
+      end = result.end;
+
+      // For full-day coverage ranges on full-day cabins, use cabin-defined times
+      if (cabin.halfdayAvailability === false && (startHalf === 'AM' && endHalf === 'PM')) {
+        const s = new Date(startDate);
+        const e = new Date(endDate);
+        const [fh, fm] = (cabin.fullDayStartTime || '00:00').split(':').map((v) => parseInt(v, 10));
+        const [th, tm] = (cabin.fullDayEndTime || '23:59').split(':').map((v) => parseInt(v, 10));
+        start = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate(), fh || 0, fm || 0, 0, 0));
+        end = new Date(Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate(), th || 23, tm || 59, 59, 999));
+      }
   }
 
   // For debugging - remove this after fixing
@@ -209,9 +221,11 @@ export const createBooking = async (slug, payload, user) => {
         start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 12, 0, 0, 0));
         end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 23, 59, 59, 999));
       } else {
-        // FULL day
-        start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0));
-        end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 23, 59, 59, 999));
+        // FULL day: use cabin-defined full-day times if provided
+        const [fh, fm] = (cabin.fullDayStartTime || '00:00').split(':').map((v) => parseInt(v, 10));
+        const [th, tm] = (cabin.fullDayEndTime || '23:59').split(':').map((v) => parseInt(v, 10));
+        start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), fh || 0, fm || 0, 0, 0));
+        end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), th || 23, tm || 59, 59, 999));
       }
       
       // Prevent past-date booking
@@ -242,6 +256,16 @@ export const createBooking = async (slug, payload, user) => {
       const result = toHalfDayRangeUTC(sd, ed, startHalf, endHalf);
       start = result.start;
       end = result.end;
+
+      // For full-day coverage ranges on full-day cabins, use cabin-defined times
+      if (cabin.halfdayAvailability === false && (startHalf === 'AM' && endHalf === 'PM')) {
+        const s = new Date(sd);
+        const e = new Date(ed);
+        const [fh, fm] = (cabin.fullDayStartTime || '00:00').split(':').map((v) => parseInt(v, 10));
+        const [th, tm] = (cabin.fullDayEndTime || '23:59').split(':').map((v) => parseInt(v, 10));
+        start = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate(), fh || 0, fm || 0, 0, 0));
+        end = new Date(Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate(), th || 23, tm || 59, 59, 999));
+      }
 
       // Prevent past-date booking
       if (end < now) {
@@ -319,7 +343,15 @@ export const createMultiBooking = async (slug, payload, user) => {
   try {
     const bookingsToCreate = [];
     for (const seg of payload.segments) {
-      const { start, end } = toHalfDayRangeUTC(seg.startDate, seg.endDate, seg.startHalf, seg.endHalf);
+      let { start, end } = toHalfDayRangeUTC(seg.startDate, seg.endDate, seg.startHalf, seg.endHalf);
+      if (cabin.halfdayAvailability === false && ((seg.startHalf || 'AM') === 'AM' && (seg.endHalf || 'PM') === 'PM')) {
+        const s = new Date(seg.startDate);
+        const e = new Date(seg.endDate);
+        const [fh, fm] = (cabin.fullDayStartTime || '00:00').split(':').map((v) => parseInt(v, 10));
+        const [th, tm] = (cabin.fullDayEndTime || '23:59').split(':').map((v) => parseInt(v, 10));
+        start = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate(), fh || 0, fm || 0, 0, 0));
+        end = new Date(Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate(), th || 23, tm || 59, 59, 999));
+      }
       bookingsToCreate.push({
         cabin: cabin._id,
         user: user?.userId || null,
