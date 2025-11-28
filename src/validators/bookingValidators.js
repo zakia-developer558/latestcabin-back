@@ -61,10 +61,10 @@ export const createBookingValidation = (data) => {
 
   // For single day and date range bookings
   const schema = Joi.alternatives().try(
-    // Single day booking
+    // Exact time window booking (explicit start/end datetimes)
     Joi.object({
-      date: Joi.date().iso().required(),
-      half: Joi.string().valid('AM', 'PM', 'FULL').default('FULL'),
+      startDateTime: Joi.date().iso().required(),
+      endDateTime: Joi.date().iso().required(),
       guestName: Joi.string().trim().min(2).max(100).required(),
       guestAddress: Joi.string().trim().min(2).max(200).required(),
       guestPostalCode: Joi.string().trim().min(2).max(20).required(),
@@ -72,7 +72,82 @@ export const createBookingValidation = (data) => {
       guestPhone: Joi.string().trim().min(5).max(30).required(),
       guestEmail: Joi.string().email().lowercase().trim().required(),
       guestAffiliation: Joi.string().trim().allow('', null)
-    }),
+    }).custom((value, helpers) => {
+      const start = new Date(value.startDateTime);
+      const end = new Date(value.endDateTime);
+      if (isNaN(start) || isNaN(end)) {
+        return helpers.error('any.custom', { message: 'Invalid startDateTime or endDateTime' });
+      }
+      if (end <= start) {
+        return helpers.error('any.custom', { message: 'endDateTime must be after startDateTime' });
+      }
+      // Disallow mixing with other shapes
+      const mixedKeys = ['date','half','startTime','endTime','startDate','endDate','startHalf','endHalf'];
+      for (const k of mixedKeys) {
+        if (k in value) {
+          return helpers.error('any.custom', { message: `Do not mix ${k} with startDateTime/endDateTime` });
+        }
+      }
+      return value;
+    }, 'exact datetime window validation'),
+    // Single day booking
+    Joi.object({
+      date: Joi.date().iso().required(),
+      half: Joi.string().valid('AM', 'PM', 'FULL').default('FULL'),
+      // Optional custom times for half-day bookings (HH:MM)
+      startTime: Joi.string()
+        .pattern(/^\d{2}:\d{2}$/)
+        .optional()
+        .messages({ 'string.pattern.base': 'startTime must be in HH:MM format' }),
+      endTime: Joi.string()
+        .pattern(/^\d{2}:\d{2}$/)
+        .optional()
+        .messages({ 'string.pattern.base': 'endTime must be in HH:MM format' }),
+      guestName: Joi.string().trim().min(2).max(100).required(),
+      guestAddress: Joi.string().trim().min(2).max(200).required(),
+      guestPostalCode: Joi.string().trim().min(2).max(20).required(),
+      guestCity: Joi.string().trim().min(2).max(100).required(),
+      guestPhone: Joi.string().trim().min(5).max(30).required(),
+      guestEmail: Joi.string().email().lowercase().trim().required(),
+      guestAffiliation: Joi.string().trim().allow('', null)
+    }).custom((value, helpers) => {
+      // If custom times are provided for half-day, validate ranges and order
+      const { half, startTime, endTime } = value;
+      if (half === 'FULL') return value; // ignore custom times for FULL
+      if ((startTime || endTime) && (half === 'AM' || half === 'PM')) {
+        const parse = (t) => {
+          const [hh, mm] = t.split(':').map((v) => parseInt(v, 10));
+          return { hh, mm };
+        };
+        if (!startTime || !endTime) {
+          return helpers.error('any.custom', { message: 'Both startTime and endTime must be provided for half-day custom times' });
+        }
+        const { hh: sh, mm: sm } = parse(startTime);
+        const { hh: eh, mm: em } = parse(endTime);
+        if (Number.isNaN(sh) || Number.isNaN(sm) || sh < 0 || sh > 23 || sm < 0 || sm > 59) {
+          return helpers.error('any.custom', { message: 'Invalid startTime value' });
+        }
+        if (Number.isNaN(eh) || Number.isNaN(em) || eh < 0 || eh > 23 || em < 0 || em > 59) {
+          return helpers.error('any.custom', { message: 'Invalid endTime value' });
+        }
+        const startMinutes = sh * 60 + sm;
+        const endMinutes = eh * 60 + em;
+        if (endMinutes <= startMinutes) {
+          return helpers.error('any.custom', { message: 'endTime must be after startTime' });
+        }
+        // Enforce half boundaries
+        if (half === 'AM') {
+          if (startMinutes < 0 || endMinutes > 12 * 60) {
+            return helpers.error('any.custom', { message: 'AM half-time must be between 00:00 and 12:00' });
+          }
+        } else if (half === 'PM') {
+          if (startMinutes < 12 * 60 || endMinutes > 24 * 60) {
+            return helpers.error('any.custom', { message: 'PM half-time must be between 12:00 and 24:00' });
+          }
+        }
+      }
+      return value;
+    }, 'half custom time validation'),
     // Date range booking
     Joi.object({
       startDate: Joi.date().iso().required(),

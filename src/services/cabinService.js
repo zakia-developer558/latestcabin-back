@@ -2,17 +2,7 @@ import Cabin from '../models/Cabin.js';
 import Counter from '../models/Counter.js';
 import User from '../models/User.js';
 import { sendCabinCreatedEmail } from '../utils/notificationEmails.js';
-
-const generateSlug = (name) => {
-  return name
-    .toString()
-    .trim()
-    .toLowerCase()
-    .normalize('NFKC')
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-};
+import { generateSlug } from '../utils/slugUtils.js';
 
 export const createCabin = async (payload, ownerUser) => {
   try {

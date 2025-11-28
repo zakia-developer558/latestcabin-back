@@ -66,6 +66,39 @@ class User extends FirebaseModel {
       }
     }
 
+    // If companyName is being updated, regenerate companySlug with Norwegian transliteration
+    const newCompanyName = (updateData.$set ? updateData.$set.companyName : updateData.companyName);
+    if (typeof newCompanyName !== 'undefined') {
+      const trimmed = typeof newCompanyName === 'string' ? newCompanyName.trim() : newCompanyName;
+
+      // Ensure trimmed companyName is set
+      if (updateData.$set) {
+        updateData.$set.companyName = trimmed;
+      } else {
+        updateData.companyName = trimmed;
+      }
+
+      if (typeof trimmed === 'string' && trimmed.length > 0) {
+        const baseCompanySlug = generateCompanySlug(trimmed);
+        const uniqueCompanySlug = await generateUniqueSlug(baseCompanySlug, async (slug) => {
+          const existingUser = await this.findOne({ companySlug: slug });
+          return !!existingUser && String(existingUser._id) !== String(id);
+        });
+        if (updateData.$set) {
+          updateData.$set.companySlug = uniqueCompanySlug;
+        } else {
+          updateData.companySlug = uniqueCompanySlug;
+        }
+      } else {
+        // If companyName is cleared, remove companySlug
+        if (updateData.$set) {
+          updateData.$set.companySlug = undefined;
+        } else {
+          updateData.companySlug = undefined;
+        }
+      }
+    }
+
     // Always update the updatedAt timestamp
     if (updateData.$set) {
       updateData.$set.updatedAt = new Date();

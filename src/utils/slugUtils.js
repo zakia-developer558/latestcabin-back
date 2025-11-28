@@ -3,13 +3,29 @@
  */
 
 /**
+ * Transliterate common Norwegian letters to ASCII-friendly equivalents.
+ * - ø/Ø → o
+ * - å/Å → a
+ * - æ/Æ → ae
+ * Also strips general diacritics (e.g., é → e) using Unicode normalization.
+ */
+const transliterateNo = (input) => {
+  if (!input) return '';
+  // Remove general diacritics
+  let s = input.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  // Explicit Norwegian mappings
+  s = s.replace(/[æÆ]/g, 'ae').replace(/[øØ]/g, 'o').replace(/[åÅ]/g, 'a');
+  return s;
+};
+
+/**
  * Generate a slug from user's first name and last name
  * @param {string} firstName - User's first name
  * @param {string} lastName - User's last name
  * @returns {string} - Generated slug
  */
 export const generateUserSlug = (firstName, lastName) => {
-  const fullName = `${firstName} ${lastName}`;
+  const fullName = transliterateNo(`${firstName} ${lastName}`);
   return fullName
     .toString()
     .trim()
@@ -44,7 +60,7 @@ export const generateUniqueSlug = async (baseSlug, checkExistence) => {
  * @returns {string} - Generated slug
  */
 export const generateCompanySlug = (companyName) => {
-  return companyName
+  return transliterateNo(companyName)
     .toString()
     .trim()
     .toLowerCase()
@@ -60,7 +76,7 @@ export const generateCompanySlug = (companyName) => {
  * @returns {string} - Generated slug
  */
 export const generateSlug = (text) => {
-  return text
+  return transliterateNo(text)
     .toString()
     .trim()
     .toLowerCase()

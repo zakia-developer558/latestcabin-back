@@ -34,6 +34,15 @@ const rangesOverlap = (startA, endA, startB, endB) => {
   return startA < endB && startB < endA;
 };
 
+// Parse an ISO datetime string; if no timezone is present, treat it as UTC
+const parseIsoAsUTC = (input) => {
+  if (input instanceof Date) return input;
+  if (typeof input !== 'string') return new Date(input);
+  const hasTz = /([+-]\d{2}:\d{2}|Z)$/i.test(input.trim());
+  const normalized = hasTz ? input.trim() : `${input.trim()}Z`;
+  return new Date(normalized);
+};
+
 const toHalfDayRangeUTC = (startDate, endDate, startHalf = 'AM', endHalf = 'PM') => {
   const s = new Date(startDate);
   const e = new Date(endDate);
@@ -135,6 +144,66 @@ export const createBooking = async (slug, payload, user) => {
 
   const now = new Date();
 
+  // Explicit start/end datetime booking
+  if (payload.startDateTime && payload.endDateTime && !payload.segments) {
+    const start = parseIsoAsUTC(payload.startDateTime);
+    const end = parseIsoAsUTC(payload.endDateTime);
+    if (isNaN(start) || isNaN(end)) {
+      const err = new Error('Invalid startDateTime or endDateTime');
+      err.status = 400;
+      throw err;
+    }
+    if (end <= start) {
+      const err = new Error('endDateTime must be after startDateTime');
+      err.status = 400;
+      throw err;
+    }
+    if (end < now) {
+      const err = new Error('Cannot book past dates');
+      err.status = 400;
+      throw err;
+    }
+
+    // Check availability for the exact window
+    const { available } = await checkSingleDayAvailability(slug, start, end);
+    if (!available) {
+      const err = new Error('Cabin is not available for the selected time window');
+      err.status = 409;
+      throw err;
+    }
+
+    const booking = await Booking.create({
+      cabin: cabin._id,
+      user: user?.userId || null,
+      startDate: start,
+      endDate: end,
+      startDateTime: start,
+      endDateTime: end,
+      guestName: payload.guestName,
+      guestAddress: payload.guestAddress,
+      guestPostalCode: payload.guestPostalCode,
+      guestCity: payload.guestCity,
+      guestPhone: payload.guestPhone,
+      guestEmail: payload.guestEmail,
+      guestAffiliation: payload.guestAffiliation,
+      status: 'pending'
+    });
+
+    try {
+      const ownerEmail = cabin.email || (await User.findById(cabin.owner))?.email;
+      if (ownerEmail) {
+        await sendBookingCreatedOwnerEmail(ownerEmail, cabin.name, payload.guestName, start, end, booking.orderNo);
+      }
+      if (payload.guestEmail) {
+        await sendBookingCreatedGuestEmail(payload.guestEmail, payload.guestName, cabin.name, start, end, 'pending');
+      }
+    } catch (e) {
+      console.warn('Booking created email (exact times) failed:', e?.message || e);
+    }
+
+    return booking;
+  }
+
   // Check if this is a multi-segment booking
   if (payload.segments && Array.isArray(payload.segments)) {
     // Multi-segment booking logic
@@ -215,11 +284,26 @@ export const createBooking = async (slug, payload, user) => {
       console.log('Single day booking debug:', { date, half, dateObj, startDate, endDate });
       
       if (half === 'AM') {
-        start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0));
-        end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 11, 59, 59, 999));
+        // Optional custom times from payload for half-day
+        if (payload.startTime && payload.endTime) {
+          const [sh, sm] = payload.startTime.split(':').map((v) => parseInt(v, 10));
+          const [eh, em] = payload.endTime.split(':').map((v) => parseInt(v, 10));
+          start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), sh, sm, 0, 0));
+          end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), eh, em, 59, 999));
+        } else {
+          start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 0, 0, 0, 0));
+          end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 11, 59, 59, 999));
+        }
       } else if (half === 'PM') {
-        start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 12, 0, 0, 0));
-        end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 23, 59, 59, 999));
+        if (payload.startTime && payload.endTime) {
+          const [sh, sm] = payload.startTime.split(':').map((v) => parseInt(v, 10));
+          const [eh, em] = payload.endTime.split(':').map((v) => parseInt(v, 10));
+          start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), sh, sm, 0, 0));
+          end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), eh, em, 59, 999));
+        } else {
+          start = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 12, 0, 0, 0));
+          end = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate(), 23, 59, 59, 999));
+        }
       } else {
         // FULL day: use cabin-defined full-day times if provided
         const [fh, fm] = (cabin.fullDayStartTime || '00:00').split(':').map((v) => parseInt(v, 10));
