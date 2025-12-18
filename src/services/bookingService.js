@@ -658,14 +658,36 @@ export const getCalendarData = async (slug, year, month) => {
     });
   });
 
-  // Add block dates (overrides bookings if same date)
+  // Add block dates with precedence rules: approved bookings win over blocks
   blockDates.forEach((items, date) => {
-    const blockType = items[0].reason?.toLowerCase().includes('maintenance') ? 'maintenance' : 'unavailable';
-    calendarData.set(date, {
-      date,
-      status: blockType, // Yellow for maintenance, gray for unavailable
-      items: items
-    });
+    const reason = items[0]?.reason;
+    const blockType = typeof reason === 'string' && reason.toLowerCase?.().includes('maintenance')
+      ? 'maintenance'
+      : 'unavailable';
+
+    const existing = calendarData.get(date);
+    if (existing) {
+      const hasApprovedBooking = Array.isArray(existing.items) && existing.items.some(i => i.type === 'booking' && i.status === 'approved');
+      if (hasApprovedBooking) {
+        // Keep booked status and append block items for visibility
+        existing.items = [...existing.items, ...items];
+        calendarData.set(date, existing);
+      } else {
+        // No approved booking present; block overrides the day status
+        calendarData.set(date, {
+          date,
+          status: blockType, // Yellow for maintenance, gray for unavailable
+          items: items
+        });
+      }
+    } else {
+      // No booking items for this date; use block status
+      calendarData.set(date, {
+        date,
+        status: blockType, // Yellow for maintenance, gray for unavailable
+        items: items
+      });
+    }
   });
 
   // Ensure legend-only days are included for coloring
