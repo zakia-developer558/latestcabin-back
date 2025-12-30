@@ -80,6 +80,7 @@ app.use(
       const allowedOrigins = [
         "https://bookin-property.vercel.app",
         "http://localhost:3000",
+        "https://cabin-front-3lr8.vercel.app"
       ];
       if (allowedOrigins.includes(origin) || !origin) {
         callback(null, origin);
